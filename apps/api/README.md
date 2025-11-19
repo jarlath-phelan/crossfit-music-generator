@@ -25,6 +25,11 @@ cp .env.example .env
 
 Development server:
 ```bash
+python main.py
+```
+
+Or alternatively with uvicorn directly:
+```bash
 uvicorn main:app --reload --port 8000
 ```
 

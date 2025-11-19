@@ -1,6 +1,7 @@
 {
-  "name": "crossfit-playlist-generator",
+  "name": "crossfit-music-generator",
   "version": "1.0.0",
+  "description": "AI-driven music curation for CrossFit workouts - generate custom playlists matched to workout intensity",
   "private": true,
   "workspaces": [
     "apps/*",
