@@ -149,12 +149,16 @@ class MusicCuratorAgent:
         
         # Score and rank candidates
         scored_candidates = self.score_candidates(candidates, phase, used_artists)
-        
+
+        if not scored_candidates:
+            logger.warning(f"No scored candidates for phase {phase.name}")
+            return None
+
         # Select best track
         best_track, best_score = scored_candidates[0]
         logger.info(f"Selected '{best_track.name}' by {best_track.artist} "
                    f"(score: {best_score:.1f}) for {phase.name}")
-        
+
         return best_track
     
     def learn(self, track: Track, feedback: dict) -> None:

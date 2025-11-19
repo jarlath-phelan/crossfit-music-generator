@@ -43,13 +43,23 @@ export function WorkoutForm({ onSubmit, isLoading }: WorkoutFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <label htmlFor="workout-input" className="text-sm font-medium">
+              Workout Description
+            </label>
             <Textarea
+              id="workout-input"
               value={workoutText}
               onChange={(e) => setWorkoutText(e.target.value)}
               placeholder="21-15-9 thrusters 95lbs and pull-ups"
               className="min-h-[120px] text-base"
               disabled={isLoading}
+              maxLength={5000}
+              aria-describedby="workout-hint"
+              aria-required="true"
             />
+            <p id="workout-hint" className="text-xs text-muted-foreground">
+              Enter your CrossFit workout description (max 5000 characters). {workoutText.length}/5000
+            </p>
             <div className="flex flex-wrap gap-2">
               <p className="text-sm text-muted-foreground w-full">Examples:</p>
               {EXAMPLE_WORKOUTS.map((example, i) => (
@@ -61,21 +71,23 @@ export function WorkoutForm({ onSubmit, isLoading }: WorkoutFormProps) {
                   onClick={() => loadExample(example)}
                   disabled={isLoading}
                   className="text-xs"
+                  aria-label={`Load example workout: ${example}`}
                 >
                   {example}
                 </Button>
               ))}
             </div>
           </div>
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             size="lg"
             disabled={isLoading || !workoutText.trim()}
+            aria-busy={isLoading}
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                 Generating Playlist...
               </>
             ) : (
