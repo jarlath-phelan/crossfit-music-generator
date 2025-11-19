@@ -11,6 +11,12 @@ This project generates Spotify-style playlists tailored to CrossFit workouts by:
 
 **Current Status**: MVP (Phase 0) - Works out-of-the-box with mock APIs, no API keys required!
 
+## Demo
+
+![CrossFit Playlist Generator Demo](docs/images/demo-screenshot.png)
+
+*Enter a workout description and instantly get a curated playlist matching your workout's intensity phases.*
+
 ## Features
 
 ### ✅ Phase 0: MVP (Current)
