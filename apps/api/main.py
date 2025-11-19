@@ -131,7 +131,7 @@ async def health_check():
 
 @app.post("/api/v1/generate", response_model=GeneratePlaylistResponse)
 @limiter.limit("10/minute")
-async def generate_playlist(request: GeneratePlaylistRequest, req: Request):
+async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     """
     Generate a playlist from workout text.
 
@@ -143,8 +143,8 @@ async def generate_playlist(request: GeneratePlaylistRequest, req: Request):
     3. Composes an optimized playlist with smooth transitions
 
     Args:
-        request: Contains workout_text string
-        req: FastAPI Request object (for rate limiting)
+        body: Contains workout_text string
+        request: FastAPI Request object (for rate limiting)
 
     Returns:
         GeneratePlaylistResponse with workout structure and playlist
@@ -153,12 +153,12 @@ async def generate_playlist(request: GeneratePlaylistRequest, req: Request):
         HTTPException: If parsing or generation fails
         RateLimitExceeded: If rate limit is exceeded
     """
-    logger.info(f"Received playlist generation request: {request.workout_text[:50]}...")
+    logger.info(f"Received playlist generation request: {body.workout_text[:50]}...")
     
     try:
         # Step 1: Parse workout
         logger.info("Step 1: Parsing workout...")
-        workout = workout_parser.parse_and_validate(request.workout_text)
+        workout = workout_parser.parse_and_validate(body.workout_text)
         logger.info(f"Parsed workout: {workout.workout_name} ({workout.total_duration_min} min)")
         
         # Step 2: Compose playlist
