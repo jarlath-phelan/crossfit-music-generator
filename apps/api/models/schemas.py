@@ -105,8 +105,13 @@ class Playlist(BaseModel):
 
 class GeneratePlaylistRequest(BaseModel):
     """Request to generate a playlist from workout text"""
-    workout_text: str = Field(..., min_length=5, description="CrossFit workout description")
-    
+    workout_text: str = Field(
+        ...,
+        min_length=5,
+        max_length=5000,
+        description="CrossFit workout description (max 5000 characters)"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {

@@ -31,20 +31,21 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Activity className="h-5 w-5" />
+          <Activity className="h-5 w-5" aria-hidden="true" />
           {workout.workout_name}
         </CardTitle>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          Total Duration: {workout.total_duration_min} minutes
+          <Clock className="h-4 w-4" aria-hidden="true" />
+          <span>Total Duration: {workout.total_duration_min} minutes</span>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div role="list" aria-label={`Workout phases, ${workout.phases.length} total`}>
           {workout.phases.map((phase, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-4 rounded-lg border bg-card"
+              role="listitem"
+              className="flex items-center justify-between p-4 rounded-lg border bg-card mb-3 last:mb-0"
             >
               <div className="flex-1">
                 <div className="font-semibold">{phase.name}</div>
@@ -56,6 +57,7 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
                 className={`px-3 py-1 rounded-full text-xs font-medium border ${
                   INTENSITY_COLORS[phase.intensity]
                 }`}
+                aria-label={`Intensity: ${INTENSITY_LABELS[phase.intensity]}`}
               >
                 {INTENSITY_LABELS[phase.intensity]}
               </div>

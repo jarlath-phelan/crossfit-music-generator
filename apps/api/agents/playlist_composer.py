@@ -8,6 +8,15 @@ from agents.music_curator import MusicCuratorAgent
 
 logger = logging.getLogger(__name__)
 
+# Constants for playlist composition
+MS_PER_MINUTE = 60000  # Milliseconds in one minute
+PHASE_DURATION_TOLERANCE_MS = 90000  # Allow up to 90 seconds over target (1.5 min)
+MIN_REMAINING_DURATION_MS = 60000  # Stop adding tracks if less than 60s remaining
+MAX_DURATION_DIFF_MIN = 2.0  # Maximum difference between playlist and workout duration (minutes)
+MIN_ARTIST_DIVERSITY = 0.7  # Require at least 70% unique artists
+MAX_RECOMMENDED_TRACKS = 15  # Warn if playlist exceeds this many tracks
+MAX_BPM_JUMP = 30  # Maximum BPM change between consecutive tracks
+
 
 class PlaylistComposerAgent:
     """
@@ -43,32 +52,32 @@ class PlaylistComposerAgent:
         
         for i, phase in enumerate(workout.phases):
             # Calculate target duration for this phase
-            phase_duration_ms = phase.duration_min * 60 * 1000
-            
+            phase_duration_ms = phase.duration_min * MS_PER_MINUTE
+
             # Select tracks to fill the phase duration
             phase_tracks = self._select_tracks_for_phase(
-                phase, 
-                phase_duration_ms, 
+                phase,
+                phase_duration_ms,
                 used_artists
             )
-            
+
             tracks.extend(phase_tracks)
-            
+
             # Update used artists
             for track in phase_tracks:
                 used_artists.add(track.artist)
-            
+
             logger.info(f"Phase {i+1} ({phase.name}): Added {len(phase_tracks)} track(s)")
-        
+
         # Create playlist
         playlist = Playlist(
             name=f"CrossFit: {workout.workout_name}",
             tracks=tracks,
             spotify_url=None  # Future: Create actual Spotify playlist
         )
-        
+
         logger.info(f"Composed playlist with {len(tracks)} tracks, "
-                   f"total duration: {sum(t.duration_ms for t in tracks) / 60000:.1f} min")
+                   f"total duration: {sum(t.duration_ms for t in tracks) / MS_PER_MINUTE:.1f} min")
         
         return playlist
     
@@ -89,16 +98,16 @@ class PlaylistComposerAgent:
         """
         phase_tracks = []
         accumulated_duration_ms = 0
-        
-        # Try to fill the phase duration (allow up to 90 seconds over)
-        max_duration = target_duration_ms + 90000  # 1.5 min tolerance
-        
+
+        # Try to fill the phase duration with tolerance
+        max_duration = target_duration_ms + PHASE_DURATION_TOLERANCE_MS
+
         while accumulated_duration_ms < target_duration_ms:
             # Calculate remaining duration
             remaining_ms = max_duration - accumulated_duration_ms
-            
+
             # Stop if we're very close to target
-            if remaining_ms < 60000:  # Less than 1 minute remaining
+            if remaining_ms < MIN_REMAINING_DURATION_MS:
                 break
             
             # Select next track
@@ -147,33 +156,33 @@ class PlaylistComposerAgent:
         # Check minimum requirements
         if not playlist.tracks:
             return False, "Playlist must have at least one track"
-        
-        # Check track count (should have 3-10 tracks for typical workouts)
-        if len(playlist.tracks) > 15:
+
+        # Check track count
+        if len(playlist.tracks) > MAX_RECOMMENDED_TRACKS:
             logger.warning(f"Playlist has {len(playlist.tracks)} tracks, which is high")
-        
-        # Validate duration (should be within ±2 minutes of workout)
-        playlist_duration_min = sum(t.duration_ms for t in playlist.tracks) / 60000
+
+        # Validate duration
+        playlist_duration_min = sum(t.duration_ms for t in playlist.tracks) / MS_PER_MINUTE
         duration_diff = abs(playlist_duration_min - workout.total_duration_min)
-        
-        if duration_diff > 2:
+
+        if duration_diff > MAX_DURATION_DIFF_MIN:
             return False, (f"Playlist duration ({playlist_duration_min:.1f} min) "
                           f"doesn't match workout ({workout.total_duration_min} min)")
-        
+
         # Check for artist diversity
         artists = [t.artist for t in playlist.tracks]
         unique_artists = set(artists)
-        
-        if len(unique_artists) < len(artists) * 0.7:  # At least 70% unique
+
+        if len(unique_artists) < len(artists) * MIN_ARTIST_DIVERSITY:
             logger.warning("Low artist diversity in playlist")
-        
-        # Validate BPM transitions (shouldn't jump more than 20 BPM between tracks)
+
+        # Validate BPM transitions
         for i in range(len(playlist.tracks) - 1):
             current_bpm = playlist.tracks[i].bpm
             next_bpm = playlist.tracks[i + 1].bpm
             bpm_jump = abs(next_bpm - current_bpm)
-            
-            if bpm_jump > 30:
+
+            if bpm_jump > MAX_BPM_JUMP:
                 logger.warning(f"Large BPM jump between tracks {i} and {i+1}: {bpm_jump} BPM")
         
         logger.info(f"Playlist validation passed: {len(playlist.tracks)} tracks, "

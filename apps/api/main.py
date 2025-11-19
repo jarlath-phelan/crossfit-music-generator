@@ -3,9 +3,12 @@ FastAPI application for CrossFit Playlist Generator
 """
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from config import settings
 from models.schemas import GeneratePlaylistRequest, GeneratePlaylistResponse
@@ -20,6 +23,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Configure rate limiting
+limiter = Limiter(key_func=get_remote_address)
+
 # Global agent instances
 workout_parser: WorkoutParserAgent
 music_curator: MusicCuratorAgent
@@ -30,15 +36,18 @@ playlist_composer: PlaylistComposerAgent
 async def lifespan(app: FastAPI):
     """Initialize and cleanup application resources"""
     global workout_parser, music_curator, playlist_composer
-    
+
+    logger.info("Validating configuration...")
+    settings.validate_api_keys()
+
     logger.info("Initializing agents...")
     workout_parser = WorkoutParserAgent()
     music_curator = MusicCuratorAgent()
     playlist_composer = PlaylistComposerAgent(curator=music_curator)
     logger.info("Agents initialized successfully")
-    
+
     yield
-    
+
     logger.info("Shutting down...")
 
 
@@ -50,13 +59,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
+# Add rate limiter state and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Configure CORS - use specific origins for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict to specific origins
+    allow_origins=[settings.frontend_url],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -80,35 +93,65 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "agents": {
-            "workout_parser": "initialized",
-            "music_curator": "initialized",
-            "playlist_composer": "initialized"
+    """Health check endpoint - verifies all agents are operational"""
+    agent_status = {}
+
+    # Check if agents are initialized
+    try:
+        agent_status["workout_parser"] = "healthy" if workout_parser else "not_initialized"
+        agent_status["music_curator"] = "healthy" if music_curator else "not_initialized"
+        agent_status["playlist_composer"] = "healthy" if playlist_composer else "not_initialized"
+
+        # Verify agents have required attributes
+        if not hasattr(workout_parser, 'parse_and_validate'):
+            agent_status["workout_parser"] = "invalid"
+        if not hasattr(music_curator, 'select_track_for_phase'):
+            agent_status["music_curator"] = "invalid"
+        if not hasattr(playlist_composer, 'compose_and_validate'):
+            agent_status["playlist_composer"] = "invalid"
+
+        all_healthy = all(status == "healthy" for status in agent_status.values())
+
+        return {
+            "status": "healthy" if all_healthy else "degraded",
+            "agents": agent_status,
+            "mock_mode": {
+                "anthropic": settings.use_mock_anthropic,
+                "spotify": settings.use_mock_spotify
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "agents": agent_status,
+            "error": str(e)
+        }
 
 
 @app.post("/api/v1/generate", response_model=GeneratePlaylistResponse)
-async def generate_playlist(request: GeneratePlaylistRequest):
+@limiter.limit("10/minute")
+async def generate_playlist(request: GeneratePlaylistRequest, req: Request):
     """
     Generate a playlist from workout text.
-    
+
+    Rate limit: 10 requests per minute per IP address.
+
     This endpoint:
     1. Parses the workout text into structured phases
     2. Curates music tracks matching each phase's intensity
     3. Composes an optimized playlist with smooth transitions
-    
+
     Args:
         request: Contains workout_text string
-        
+        req: FastAPI Request object (for rate limiting)
+
     Returns:
         GeneratePlaylistResponse with workout structure and playlist
-        
+
     Raises:
         HTTPException: If parsing or generation fails
+        RateLimitExceeded: If rate limit is exceeded
     """
     logger.info(f"Received playlist generation request: {request.workout_text[:50]}...")
     
