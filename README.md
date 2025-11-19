@@ -13,9 +13,17 @@ This project generates Spotify-style playlists tailored to CrossFit workouts by:
 
 ## Demo
 
-![CrossFit Playlist Generator Demo](docs/images/demo-screenshot.png)
+### 1. Enter Your Workout
+![Workout Input](docs/images/1_input.png)
+*Simple, intuitive interface - just paste your workout description*
 
-*Enter a workout description and instantly get a curated playlist matching your workout's intensity phases.*
+### 2. Parse Workout Structure
+![Workout Settings](docs/images/2_settings.png)
+*Automatically identifies workout format, intensity phases, and BPM requirements*
+
+### 3. Get Your Playlist
+![Generated Playlist](docs/images/3_output.png)
+*Curated playlist with tracks matched to each phase - ready to energize your WOD!*
 
 ## Features
 
