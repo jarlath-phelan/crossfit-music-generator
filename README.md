@@ -1,5 +1,10 @@
 # CrossFit Playlist Generator
 
+[![Live Demo](https://img.shields.io/badge/demo-live-success?style=for-the-badge&logo=vercel)](https://crossfit-music-generator-web.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+
 Generate custom workout playlists from CrossFit workout descriptions using AI-driven music curation.
 
 ## Overview
@@ -10,6 +15,12 @@ This project generates Spotify-style playlists tailored to CrossFit workouts by:
 3. **Composing** optimized playlists with smooth transitions
 
 **Current Status**: MVP (Phase 0) - Works out-of-the-box with mock APIs, no API keys required!
+
+## 🚀 Live Demo
+
+**Try it now:** [https://crossfit-music-generator-web.vercel.app](https://crossfit-music-generator-web.vercel.app/)
+
+Enter any CrossFit workout and instantly get a personalized playlist!
 
 ## Demo
 
