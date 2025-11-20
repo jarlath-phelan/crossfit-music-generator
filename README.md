@@ -1,5 +1,10 @@
 # CrossFit Playlist Generator
 
+[![Live Demo](https://img.shields.io/badge/demo-live-success?style=for-the-badge&logo=vercel)](https://crossfit-music-generator-web.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+
 Generate custom workout playlists from CrossFit workout descriptions using AI-driven music curation.
 
 ## Overview
@@ -10,6 +15,12 @@ This project generates Spotify-style playlists tailored to CrossFit workouts by:
 3. **Composing** optimized playlists with smooth transitions
 
 **Current Status**: MVP (Phase 0) - Works out-of-the-box with mock APIs, no API keys required!
+
+## 🚀 Live Demo
+
+**Try it now:** [https://crossfit-music-generator-web.vercel.app](https://crossfit-music-generator-web.vercel.app/)
+
+Enter any CrossFit workout and instantly get a personalized playlist!
 
 ## Demo
 
@@ -84,16 +95,17 @@ crossfit-playlist-generator/
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm
-- Python 3.11+
+- Node.js 18+ (tested with v22)
+- pnpm 8+
+- Python 3.11+ (tested with 3.12)
 - (Optional) API keys for production use
 
 ### Installation
 
 1. **Clone the repository**:
    ```bash
-   git clone <repo-url>
-   cd crossfit-playlist-generator
+   git clone https://github.com/jarlath-phelan/crossfit-music-generator.git
+   cd crossfit-music-generator
    ```
 
 2. **Install dependencies**:
@@ -109,7 +121,16 @@ crossfit-playlist-generator/
    cd ../..
    ```
 
-3. **Run the development servers**:
+3. **Configure environment variables** (optional - app works out-of-the-box with defaults):
+   ```bash
+   # Backend environment (optional)
+   cd apps/api
+   cp .env.example .env
+   # Edit .env if you want to use real Anthropic/Spotify APIs
+   cd ../..
+   ```
+
+4. **Run the development servers**:
    ```bash
    # From project root, run both frontend and backend
    pnpm dev
@@ -127,7 +148,7 @@ crossfit-playlist-generator/
    pnpm dev
    ```
 
-4. **Open the app**:
+5. **Open the app**:
    - Frontend: http://localhost:3000
    - API docs: http://localhost:8000/docs
 
@@ -258,14 +279,16 @@ Generate a playlist from workout text.
 }
 ```
 
-Interactive API docs: http://localhost:8000/docs
+**Rate Limiting**: The API is rate-limited to 10 requests per minute per IP address.
+
+**Interactive API docs**: http://localhost:8000/docs
 
 ## Tech Stack
 
 | Category | Technology |
 |----------|-----------|
 | **Frontend** | Next.js 15, React 19, TypeScript, Tailwind CSS v4 |
-| **Backend** | FastAPI, Python 3.11, Pydantic v2 |
+| **Backend** | FastAPI, Python 3.11+, Pydantic v2 |
 | **UI Components** | shadcn/ui, Lucide Icons |
 | **Monorepo** | Turborepo, pnpm workspaces |
 | **AI (Future)** | Anthropic Claude API |
@@ -278,9 +301,9 @@ Interactive API docs: http://localhost:8000/docs
 ### Code Quality
 
 - **TypeScript**: Strict mode enabled
-- **Python**: Type hints with Pydantic
-- **Linting**: ESLint (frontend), Black/Flake8 (backend)
-- **Testing**: Jest + React Testing Library (frontend), Pytest (backend)
+- **Python**: Type hints with Pydantic v2
+- **Linting**: ESLint (frontend)
+- **Testing**: Planned for future phases (Jest + React Testing Library for frontend, Pytest for backend)
 
 ### Environment Variables
 

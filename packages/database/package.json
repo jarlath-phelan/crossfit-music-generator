@@ -1,6 +1,7 @@
 {
   "name": "@crossfit-playlist/database",
   "version": "1.0.0",
+  "description": "Database schemas and utilities for CrossFit Music Generator",
   "main": "./src/index.ts",
   "scripts": {
     "clean": "rm -rf dist"

@@ -16,7 +16,7 @@ This is a Turborepo monorepo with pnpm workspaces:
 crossfit-music-generator/
 ├── apps/
 │   ├── web/          # Next.js 15 frontend (React 19, Tailwind v4)
-│   └── api/          # FastAPI backend (Python 3.11)
+│   └── api/          # FastAPI backend (Python 3.11+)
 ├── packages/
 │   ├── shared/       # Shared TypeScript types
 │   └── database/     # Future schema definitions

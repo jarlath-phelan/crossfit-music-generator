@@ -15,7 +15,7 @@ The CrossFit Playlist Generator uses an agent-based architecture to parse workou
 - **Icons**: Lucide React
 
 ### Backend
-- **Framework**: FastAPI (Python 3.11)
+- **Framework**: FastAPI (Python 3.11+)
 - **Validation**: Pydantic v2
 - **AI Integration**: Anthropic Claude API (future)
 - **Music API**: Spotify Web API (future)
