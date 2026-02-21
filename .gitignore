@@ -60,3 +60,6 @@ yarn-error.log*
 # OS
 Thumbs.db
 
+# Design exploration
+logo-playground.html
+
