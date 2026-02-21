@@ -14,7 +14,7 @@ export default async function PlaylistPage({
   params: Promise<{ id: string }>
 }) {
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) redirect('/')
+  if (!session) redirect('/generate')
 
   const { id } = await params
   const data = await getPlaylistById(id)
@@ -24,22 +24,22 @@ export default async function PlaylistPage({
   const playlist = data.playlistData as Playlist | null
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
+    <main className="min-h-screen bg-[var(--background)]">
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
         <Link
-          href="/playlists"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
+          href="/library"
+          className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to playlists
+          Back to library
         </Link>
 
-        <h1 className="text-3xl font-bold mb-2">{data.name}</h1>
-        <p className="text-sm text-muted-foreground mb-8">
-          Saved on {new Date(data.createdAt).toLocaleDateString()}
+        <h1 className="text-2xl font-bold mb-1">{data.name}</h1>
+        <p className="text-sm text-[var(--muted)] mb-6 font-mono">
+          {new Date(data.createdAt).toLocaleDateString()}
         </p>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
           {workout && <WorkoutDisplay workout={workout} />}
           {playlist && (
             <PlaylistDisplay
