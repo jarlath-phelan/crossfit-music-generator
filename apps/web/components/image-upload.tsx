@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, Upload, X, Image as ImageIcon } from 'lucide-react'
 
@@ -16,17 +16,85 @@ const MAX_DIMENSION = 1568 // Claude Vision max recommended dimension
 
 export function ImageUpload({ onImageCapture, onClear, disabled, hasImage }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null)
+  const [viewfinderActive, setViewfinderActive] = useState(false)
+  const [hasGetUserMedia, setHasGetUserMedia] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  useEffect(() => {
+    setHasGetUserMedia(!!navigator.mediaDevices?.getUserMedia)
+  }, [])
+
+  const stopStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    setViewfinderActive(false)
+  }, [])
+
+  useEffect(() => {
+    return stopStream
+  }, [stopStream])
 
   const processImage = useCallback(async (file: File) => {
     const mediaType = file.type || 'image/jpeg'
-
-    // Compress if needed
     const base64 = await compressImage(file)
     setPreview(base64)
-    onImageCapture(base64.split(',')[1], mediaType) // Strip data:image/...;base64, prefix
+    onImageCapture(base64.split(',')[1], mediaType)
   }, [onImageCapture])
+
+  const openViewfinder = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      })
+      streamRef.current = stream
+      setViewfinderActive(true)
+      // Wait for video element to mount, then attach stream
+      requestAnimationFrame(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+      })
+    } catch {
+      // getUserMedia failed (denied or unavailable) — fall back to file input
+      cameraInputRef.current?.click()
+    }
+  }, [])
+
+  const captureFromViewfinder = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const canvas = document.createElement('canvas')
+    let width = video.videoWidth
+    let height = video.videoHeight
+
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+      const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
+      width = Math.round(width * ratio)
+      height = Math.round(height * ratio)
+    }
+
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(video, 0, 0, width, height)
+
+    let quality = 0.85
+    let result = canvas.toDataURL('image/jpeg', quality)
+    while (result.length > MAX_IMAGE_SIZE * 1.37 && quality > 0.3) {
+      quality -= 0.1
+      result = canvas.toDataURL('image/jpeg', quality)
+    }
+
+    stopStream()
+    setPreview(result)
+    onImageCapture(result.split(',')[1], 'image/jpeg')
+  }, [stopStream, onImageCapture])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -40,6 +108,46 @@ export function ImageUpload({ onImageCapture, onClear, disabled, hasImage }: Ima
     onClear()
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (cameraInputRef.current) cameraInputRef.current.value = ''
+  }
+
+  const handleTakePhoto = () => {
+    if (hasGetUserMedia) {
+      openViewfinder()
+    } else {
+      cameraInputRef.current?.click()
+    }
+  }
+
+  if (viewfinderActive) {
+    return (
+      <div className="relative rounded-lg overflow-hidden bg-black">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full max-h-80 object-contain"
+        />
+        <div className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-4 p-4 bg-gradient-to-t from-black/70">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-white hover:bg-white/20"
+            onClick={() => stopStream()}
+            aria-label="Cancel"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <button
+            type="button"
+            className="h-14 w-14 rounded-full border-4 border-white bg-white/20 hover:bg-white/40 transition-colors"
+            onClick={captureFromViewfinder}
+            aria-label="Capture photo"
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -65,12 +173,12 @@ export function ImageUpload({ onImageCapture, onClear, disabled, hasImage }: Ima
         </div>
       ) : (
         <div className="flex gap-2">
-          {/* Camera capture (mobile-first) */}
+          {/* Camera capture (live viewfinder or fallback) */}
           <Button
             type="button"
             variant="outline"
             className="flex-1"
-            onClick={() => cameraInputRef.current?.click()}
+            onClick={handleTakePhoto}
             disabled={disabled}
           >
             <Camera className="mr-2 h-4 w-4" />

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CrossFit Playlist Generator - AI-driven music curation for CrossFit workouts. Parse workout text or photos, match music to intensity phases via pluggable music sources, and compose optimized playlists.
 
-**Current Status**: Phase 2 - Claude API integration, photo input, pluggable music sources. Works with mock APIs by default, no API keys required.
+**Current Status**: Phase 5 - PWA with camera access. Installable as a Progressive Web App with live camera viewfinder, offline fallback, Spotify OAuth, database persistence.
 
 ## Monorepo Structure
 
@@ -229,11 +229,19 @@ FRONTEND_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
+## PWA
+
+The app is a Progressive Web App using Next.js built-in support (no external PWA library):
+- `apps/web/app/manifest.ts` — auto-linked web app manifest
+- `apps/web/public/sw.js` — service worker with network-first strategy and offline fallback
+- `apps/web/components/sw-register.tsx` — registers SW in production only
+- `apps/web/public/offline.html` — branded offline fallback page
+- PWA icons: `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png`
+
+Camera uses `navigator.mediaDevices.getUserMedia()` for live viewfinder with progressive enhancement fallback to `<input capture>`.
+
 ## Future Phases
 
-- **Phase 3**: Spotify search + Web Playback SDK
-- **Phase 4**: Auth (Better Auth) + Supabase persistence
-- **Phase 5**: PWA (next-pwa-pack) with camera access
 - **Phase 6**: Track feedback, playlist export, streaming progress
 
 ## Debugging
