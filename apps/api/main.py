@@ -3,6 +3,7 @@ FastAPI application for CrossFit Playlist Generator
 """
 import logging
 from contextlib import asynccontextmanager
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,7 +12,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from config import settings
-from models.schemas import GeneratePlaylistRequest, GeneratePlaylistResponse
+from models.schemas import GeneratePlaylistRequest, GeneratePlaylistResponse, Track
 from agents.workout_parser import WorkoutParserAgent
 from agents.music_curator import MusicCuratorAgent
 from agents.playlist_composer import PlaylistComposerAgent
@@ -30,12 +31,13 @@ limiter = Limiter(key_func=get_remote_address)
 workout_parser: WorkoutParserAgent
 music_curator: MusicCuratorAgent
 playlist_composer: PlaylistComposerAgent
+spotify_client: Optional[object] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize and cleanup application resources"""
-    global workout_parser, music_curator, playlist_composer
+    global workout_parser, music_curator, playlist_composer, spotify_client
 
     logger.info("Validating configuration...")
     settings.validate_api_keys()
@@ -44,6 +46,19 @@ async def lifespan(app: FastAPI):
     workout_parser = WorkoutParserAgent()
     music_curator = MusicCuratorAgent()
     playlist_composer = PlaylistComposerAgent(curator=music_curator)
+
+    # Initialize Spotify client if credentials are available
+    if not settings.use_mock_spotify and settings.spotify_client_id and settings.spotify_client_secret:
+        try:
+            from clients.spotify_client import SpotifyClient
+            spotify_client = SpotifyClient()
+            logger.info("Spotify client initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Spotify client: {e}")
+            spotify_client = None
+    else:
+        logger.info("Spotify integration disabled (mock mode or missing credentials)")
+
     logger.info("Agents initialized successfully")
 
     yield
@@ -55,7 +70,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CrossFit Playlist Generator API",
     description="Generate workout playlists from CrossFit workout text or photos",
-    version="2.0.0",
+    version="3.0.0",
     lifespan=lifespan
 )
 
@@ -78,7 +93,7 @@ async def root():
     """Root endpoint with API information"""
     return {
         "name": "CrossFit Playlist Generator API",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "status": "operational",
         "docs": "/docs",
         "endpoints": {
@@ -89,6 +104,7 @@ async def root():
             "spotify": settings.use_mock_spotify
         },
         "music_source": settings.music_source,
+        "spotify_enabled": spotify_client is not None,
     }
 
 
@@ -121,6 +137,7 @@ async def health_check():
                 "spotify": settings.use_mock_spotify
             },
             "music_source": settings.music_source,
+            "spotify_enabled": spotify_client is not None,
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -129,6 +146,35 @@ async def health_check():
             "agents": agent_status,
             "error": str(e)
         }
+
+
+def _resolve_spotify(playlist) -> None:
+    """Resolve playlist tracks to Spotify URIs if Spotify client is available."""
+    if not spotify_client:
+        return
+
+    logger.info("Step 3: Resolving tracks on Spotify...")
+    track_dicts = [
+        {"name": t.name, "artist": t.artist}
+        for t in playlist.tracks
+    ]
+
+    resolved = spotify_client.resolve_tracks(track_dicts)
+
+    for i, resolved_data in enumerate(resolved):
+        track = playlist.tracks[i]
+        if "spotify_uri" in resolved_data:
+            playlist.tracks[i] = Track(
+                id=track.id,
+                name=track.name,
+                artist=track.artist,
+                bpm=track.bpm,
+                energy=track.energy,
+                duration_ms=resolved_data.get("duration_ms", track.duration_ms),
+                spotify_url=resolved_data.get("spotify_url"),
+                spotify_uri=resolved_data.get("spotify_uri"),
+                album_art_url=resolved_data.get("album_art_url"),
+            )
 
 
 @app.post("/api/v1/generate", response_model=GeneratePlaylistResponse)
@@ -145,9 +191,8 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
 
     Pipeline:
     1. Parse workout (text or image) → structured phases
-    2. Find tracks matching each phase's BPM range
-    3. Score and rank candidates
-    4. Compose optimized playlist with smooth transitions
+    2. Find tracks matching each phase's BPM range → compose playlist
+    3. Resolve tracks on Spotify (if enabled) → URIs + album art
     """
     has_text = body.workout_text and body.workout_text.strip()
     has_image = body.workout_image_base64 and body.image_media_type
@@ -180,6 +225,9 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
         logger.info("Step 2: Composing playlist...")
         playlist = playlist_composer.compose_and_validate(workout)
         logger.info(f"Composed playlist: {len(playlist.tracks)} tracks")
+
+        # Step 3: Resolve on Spotify (if enabled)
+        _resolve_spotify(playlist)
 
         # Return response
         response = GeneratePlaylistResponse(
