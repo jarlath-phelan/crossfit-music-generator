@@ -3,25 +3,45 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, Camera, Type } from 'lucide-react'
+import { Loader2, Camera, Type, Zap, Pencil, RotateCcw } from 'lucide-react'
 import { ImageUpload } from '@/components/image-upload'
+import { TogglePills } from '@/components/ui/toggle-pills'
 
 type InputMode = 'photo' | 'text'
 
 interface WorkoutFormProps {
   onSubmit: (workoutText: string, imageBase64?: string, imageMediaType?: string) => Promise<void>
   isLoading: boolean
+  /** When true, show collapsed single-line view with Edit/New buttons */
+  isCompact?: boolean
+  /** The workout text to show in compact mode */
+  compactText?: string
+  /** Called when user clicks Edit in compact mode */
+  onEdit?: () => void
+  /** Called when user clicks New Workout in compact mode */
+  onNewWorkout?: () => void
 }
 
 const EXAMPLE_WORKOUTS = [
-  '21-15-9 thrusters 95lbs and pull-ups',
-  'AMRAP 20 minutes: 5 pull-ups, 10 push-ups, 15 air squats',
-  'EMOM 12 minutes: 10 burpees',
-  '5 rounds for time: 400m run, 15 overhead squats, 15 pull-ups',
+  '21-15-9 thrusters and pull-ups',
+  'AMRAP 20: 5 pull-ups, 10 push-ups, 15 squats',
+  'EMOM 12: 10 burpees',
+  '5 RFT: 400m run, 15 OHS, 15 pull-ups',
 ]
 
-export function WorkoutForm({ onSubmit, isLoading }: WorkoutFormProps) {
+const INPUT_MODE_OPTIONS = [
+  { label: 'Text', value: 'text', icon: <Type className="h-3.5 w-3.5" /> },
+  { label: 'Photo', value: 'photo', icon: <Camera className="h-3.5 w-3.5" /> },
+]
+
+export function WorkoutForm({
+  onSubmit,
+  isLoading,
+  isCompact = false,
+  compactText,
+  onEdit,
+  onNewWorkout,
+}: WorkoutFormProps) {
   const [workoutText, setWorkoutText] = useState('')
   const [inputMode, setInputMode] = useState<InputMode>('text')
   const [imageBase64, setImageBase64] = useState<string | null>(null)
@@ -55,126 +75,120 @@ export function WorkoutForm({ onSubmit, isLoading }: WorkoutFormProps) {
     (inputMode === 'text' && workoutText.trim()) ||
     (inputMode === 'photo' && imageBase64)
 
+  // Compact mode: single-line showing workout text with Edit/New buttons
+  if (isCompact && compactText) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-white p-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-[var(--muted)] truncate">{compactText}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {onEdit && (
+            <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+              <Pencil className="h-3 w-3 mr-1.5" />
+              Edit
+            </Button>
+          )}
+          {onNewWorkout && (
+            <Button type="button" variant="outline" size="sm" onClick={onNewWorkout}>
+              <RotateCcw className="h-3 w-3 mr-1.5" />
+              New
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Describe Your Workout</CardTitle>
-        <CardDescription>
-          Snap a photo of the whiteboard or type your workout description
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Input mode toggle */}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={inputMode === 'photo' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setInputMode('photo')}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Input mode toggle */}
+      <div className="flex items-center justify-between">
+        <TogglePills
+          options={INPUT_MODE_OPTIONS}
+          value={inputMode}
+          onChange={(v) => setInputMode(v as InputMode)}
+          size="sm"
+        />
+      </div>
+
+      {/* Photo input */}
+      {inputMode === 'photo' && (
+        <div className="space-y-3">
+          <ImageUpload
+            onImageCapture={handleImageCapture}
+            onClear={handleImageClear}
+            disabled={isLoading}
+            hasImage={!!imageBase64}
+          />
+          <div>
+            <label htmlFor="photo-context" className="text-sm font-medium text-[var(--muted)]">
+              Additional context (optional)
+            </label>
+            <Textarea
+              id="photo-context"
+              value={workoutText}
+              onChange={(e) => setWorkoutText(e.target.value)}
+              placeholder="e.g. This is a 20-minute class, focus on the main WOD"
+              className="min-h-[60px] text-sm mt-1 rounded-lg border-[var(--border)]"
               disabled={isLoading}
-              className="flex-1"
-            >
-              <Camera className="mr-2 h-4 w-4" />
-              Take Photo
-            </Button>
-            <Button
-              type="button"
-              variant={inputMode === 'text' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setInputMode('text')}
-              disabled={isLoading}
-              className="flex-1"
-            >
-              <Type className="mr-2 h-4 w-4" />
-              Type Workout
-            </Button>
+              maxLength={1000}
+            />
           </div>
+        </div>
+      )}
 
-          {/* Photo input */}
-          {inputMode === 'photo' && (
-            <div className="space-y-3">
-              <ImageUpload
-                onImageCapture={handleImageCapture}
-                onClear={handleImageClear}
+      {/* Text input */}
+      {inputMode === 'text' && (
+        <div className="space-y-3">
+          <Textarea
+            id="workout-input"
+            value={workoutText}
+            onChange={(e) => setWorkoutText(e.target.value)}
+            placeholder="Describe your workout..."
+            className="min-h-[100px] text-base rounded-lg border-[var(--border)] placeholder:text-[var(--muted)]/60"
+            disabled={isLoading}
+            maxLength={5000}
+            aria-describedby="workout-hint"
+            aria-required="true"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {EXAMPLE_WORKOUTS.map((example, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => loadExample(example)}
                 disabled={isLoading}
-                hasImage={!!imageBase64}
-              />
-              <div>
-                <label htmlFor="photo-context" className="text-sm font-medium">
-                  Additional context (optional)
-                </label>
-                <Textarea
-                  id="photo-context"
-                  value={workoutText}
-                  onChange={(e) => setWorkoutText(e.target.value)}
-                  placeholder="e.g. This is a 20-minute class, focus on the main WOD"
-                  className="min-h-[60px] text-sm mt-1"
-                  disabled={isLoading}
-                  maxLength={1000}
-                />
-              </div>
-            </div>
-          )}
+                className="text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
+                aria-label={`Load example: ${example}`}
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-          {/* Text input */}
-          {inputMode === 'text' && (
-            <div className="space-y-2">
-              <label htmlFor="workout-input" className="text-sm font-medium">
-                Workout Description
-              </label>
-              <Textarea
-                id="workout-input"
-                value={workoutText}
-                onChange={(e) => setWorkoutText(e.target.value)}
-                placeholder="21-15-9 thrusters 95lbs and pull-ups"
-                className="min-h-[120px] text-base"
-                disabled={isLoading}
-                maxLength={5000}
-                aria-describedby="workout-hint"
-                aria-required="true"
-              />
-              <p id="workout-hint" className="text-xs text-muted-foreground">
-                Enter your CrossFit workout description (max 5000 characters). {workoutText.length}/5000
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <p className="text-sm text-muted-foreground w-full">Examples:</p>
-                {EXAMPLE_WORKOUTS.map((example, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => loadExample(example)}
-                    disabled={isLoading}
-                    className="text-xs"
-                    aria-label={`Load example workout: ${example}`}
-                  >
-                    {example}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={isLoading || !canSubmit}
-            aria-busy={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                Generating Playlist...
-              </>
-            ) : (
-              'Generate Playlist'
-            )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      {/* Generate button */}
+      <Button
+        type="submit"
+        variant="accent"
+        className="w-full h-11 text-base"
+        disabled={isLoading || !canSubmit}
+        aria-busy={isLoading}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <Zap className="mr-2 h-4 w-4" aria-hidden="true" />
+            Generate Playlist
+          </>
+        )}
+      </Button>
+    </form>
   )
 }

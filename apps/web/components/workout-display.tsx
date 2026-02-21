@@ -1,23 +1,32 @@
 'use client'
 
-import type { WorkoutStructure, Phase } from '@crossfit-playlist/shared'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Activity, Clock } from 'lucide-react'
+import type { WorkoutStructure, Phase, IntensityLevel } from '@crossfit-playlist/shared'
+import { BpmGauge } from '@/components/viz/bpm-gauge'
+import { IntensityArc } from '@/components/viz/intensity-arc'
 
 interface WorkoutDisplayProps {
   workout: WorkoutStructure
 }
 
-const INTENSITY_COLORS: Record<Phase['intensity'], string> = {
-  warm_up: 'bg-blue-100 text-blue-800 border-blue-200',
-  low: 'bg-green-100 text-green-800 border-green-200',
-  moderate: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  high: 'bg-orange-100 text-orange-800 border-orange-200',
-  very_high: 'bg-red-100 text-red-800 border-red-200',
-  cooldown: 'bg-purple-100 text-purple-800 border-purple-200',
+const PHASE_COLORS: Record<IntensityLevel, string> = {
+  warm_up: 'var(--phase-warmup)',
+  low: 'var(--phase-low)',
+  moderate: 'var(--phase-moderate)',
+  high: 'var(--phase-high)',
+  very_high: 'var(--phase-very-high)',
+  cooldown: 'var(--phase-cooldown)',
 }
 
-const INTENSITY_LABELS: Record<Phase['intensity'], string> = {
+const PHASE_BORDER_CLASSES: Record<IntensityLevel, string> = {
+  warm_up: 'border-l-[#3B82F6]',
+  low: 'border-l-[#10B981]',
+  moderate: 'border-l-[#F59E0B]',
+  high: 'border-l-[#F97316]',
+  very_high: 'border-l-[#EF4444]',
+  cooldown: 'border-l-[#8B5CF6]',
+}
+
+const INTENSITY_LABELS: Record<IntensityLevel, string> = {
   warm_up: 'Warm Up',
   low: 'Low',
   moderate: 'Moderate',
@@ -27,45 +36,55 @@ const INTENSITY_LABELS: Record<Phase['intensity'], string> = {
 }
 
 export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
+  // WOD phases get flex-[2] to be wider
+  const isWodPhase = (phase: Phase) =>
+    phase.intensity !== 'warm_up' && phase.intensity !== 'cooldown'
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="h-5 w-5" aria-hidden="true" />
-          {workout.workout_name}
-        </CardTitle>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" aria-hidden="true" />
-          <span>Total Duration: {workout.total_duration_min} minutes</span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div role="list" aria-label={`Workout phases, ${workout.phases.length} total`}>
-          {workout.phases.map((phase, index) => (
-            <div
-              key={index}
-              role="listitem"
-              className="flex items-center justify-between p-4 rounded-lg border bg-card mb-3 last:mb-0"
-            >
-              <div className="flex-1">
-                <div className="font-semibold">{phase.name}</div>
-                <div className="text-sm text-muted-foreground">
-                  {phase.duration_min} min · BPM {phase.bpm_range[0]}-{phase.bpm_range[1]}
-                </div>
+    <div className="space-y-3">
+      {/* Phase cards in a horizontal row */}
+      <div className="flex gap-3" role="list" aria-label={`Workout phases, ${workout.phases.length} total`}>
+        {workout.phases.map((phase, index) => (
+          <div
+            key={index}
+            role="listitem"
+            className={`
+              ${isWodPhase(phase) ? 'flex-[2]' : 'flex-1'}
+              bg-white rounded-xl border border-[var(--border)] border-l-4
+              ${PHASE_BORDER_CLASSES[phase.intensity]}
+              p-3 shadow-sm
+              animate-scale-in
+            `}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{phase.name}</p>
+                <p className="text-xs text-[var(--muted)]">
+                  {INTENSITY_LABELS[phase.intensity]}
+                </p>
+                <p className="font-mono text-xs text-[var(--muted)] mt-1">
+                  {phase.duration_min}m
+                </p>
               </div>
-              <div
-                className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                  INTENSITY_COLORS[phase.intensity]
-                }`}
-                aria-label={`Intensity: ${INTENSITY_LABELS[phase.intensity]}`}
-              >
-                {INTENSITY_LABELS[phase.intensity]}
-              </div>
+              <BpmGauge
+                bpmRange={phase.bpm_range as [number, number]}
+                color={PHASE_COLORS[phase.intensity]}
+                size={52}
+              />
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        ))}
+      </div>
+
+      {/* Intensity arc below the cards */}
+      <IntensityArc
+        phases={workout.phases}
+        totalDuration={workout.total_duration_min}
+        showLabels
+        showPeakMarker
+        height={56}
+      />
+    </div>
   )
 }
-

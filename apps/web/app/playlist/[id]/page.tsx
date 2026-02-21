@@ -44,6 +44,7 @@ export default async function PlaylistPage({
           {playlist && (
             <PlaylistDisplay
               playlist={playlist}
+              phases={workout?.phases}
               spotifyToken={null}
             />
           )}

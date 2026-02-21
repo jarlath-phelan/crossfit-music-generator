@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Camera, Upload, X, Image as ImageIcon } from 'lucide-react'
+import { Camera, Upload, X } from 'lucide-react'
 
 interface ImageUploadProps {
   onImageCapture: (base64: string, mediaType: string) => void
@@ -53,14 +53,12 @@ export function ImageUpload({ onImageCapture, onClear, disabled, hasImage }: Ima
       })
       streamRef.current = stream
       setViewfinderActive(true)
-      // Wait for video element to mount, then attach stream
       requestAnimationFrame(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
         }
       })
     } catch {
-      // getUserMedia failed (denied or unavailable) — fall back to file input
       cameraInputRef.current?.click()
     }
   }, [])
@@ -120,7 +118,7 @@ export function ImageUpload({ onImageCapture, onClear, disabled, hasImage }: Ima
 
   if (viewfinderActive) {
     return (
-      <div className="relative rounded-lg overflow-hidden bg-black">
+      <div className="relative rounded-xl overflow-hidden bg-black">
         <video
           ref={videoRef}
           autoPlay
@@ -157,45 +155,44 @@ export function ImageUpload({ onImageCapture, onClear, disabled, hasImage }: Ima
           <img
             src={preview}
             alt="Workout whiteboard photo"
-            className="w-full max-h-64 object-contain rounded-lg border bg-muted"
+            className="w-full max-h-48 object-contain rounded-xl border border-[var(--border)] bg-[var(--secondary)]"
           />
-          <Button
+          <button
             type="button"
-            variant="destructive"
-            size="icon"
-            className="absolute top-2 right-2 h-8 w-8"
+            className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
             onClick={handleClear}
             disabled={disabled}
             aria-label="Remove image"
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       ) : (
-        <div className="flex gap-2">
-          {/* Camera capture (live viewfinder or fallback) */}
-          <Button
-            type="button"
-            variant="outline"
-            className="flex-1"
-            onClick={handleTakePhoto}
-            disabled={disabled}
-          >
-            <Camera className="mr-2 h-4 w-4" />
-            Take Photo
-          </Button>
-
-          {/* File picker */}
-          <Button
-            type="button"
-            variant="outline"
-            className="flex-1"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Image
-          </Button>
+        <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[var(--border)] p-6">
+          <Camera className="h-8 w-8 text-[var(--muted)]" />
+          <p className="text-sm text-[var(--muted)]">Snap your whiteboard or upload an image</p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="accent"
+              size="sm"
+              onClick={handleTakePhoto}
+              disabled={disabled}
+            >
+              <Camera className="mr-1.5 h-3.5 w-3.5" />
+              Take Photo
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+            >
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              Upload
+            </Button>
+          </div>
         </div>
       )}
 
@@ -233,7 +230,6 @@ async function compressImage(file: File): Promise<string> {
       img.onload = () => {
         const canvas = document.createElement('canvas')
 
-        // Scale down if needed
         let { width, height } = img
         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
           const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
@@ -247,12 +243,10 @@ async function compressImage(file: File): Promise<string> {
         const ctx = canvas.getContext('2d')!
         ctx.drawImage(img, 0, 0, width, height)
 
-        // Try JPEG compression at decreasing quality until under size limit
         let quality = 0.85
         let result = canvas.toDataURL('image/jpeg', quality)
 
         while (result.length > MAX_IMAGE_SIZE * 1.37 && quality > 0.3) {
-          // 1.37 accounts for base64 overhead
           quality -= 0.1
           result = canvas.toDataURL('image/jpeg', quality)
         }

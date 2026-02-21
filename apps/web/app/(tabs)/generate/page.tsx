@@ -7,6 +7,7 @@ import { generatePlaylist, getSpotifyAccessToken, savePlaylist } from '@/app/act
 import { WorkoutForm } from '@/components/workout-form'
 import { WorkoutDisplay } from '@/components/workout-display'
 import { PlaylistDisplay } from '@/components/playlist-display'
+import { GenerateSkeleton } from '@/components/generate-skeleton'
 import { SpotifyPlayer } from '@/components/spotify-player'
 import { useSpotifyPlayer } from '@/hooks/use-spotify-player'
 import { authClient } from '@/lib/auth-client'
@@ -14,15 +15,36 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
 import { UserMenu } from '@/components/auth/user-menu'
 import { Badge } from '@/components/ui/badge'
-import { Save } from 'lucide-react'
+import { Save, AudioLines } from 'lucide-react'
+
+type GenerateState = 'empty' | 'loading' | 'results'
+
+const LOADING_MESSAGES = [
+  'Parsing workout...',
+  'Finding tracks...',
+  'Composing playlist...',
+]
 
 export default function GeneratePage() {
-  const [isLoading, setIsLoading] = useState(false)
+  const [state, setState] = useState<GenerateState>('empty')
   const [isSaving, setIsSaving] = useState(false)
   const [result, setResult] = useState<GeneratePlaylistResponse | null>(null)
   const [workoutText, setWorkoutText] = useState('')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
   const { data: session } = authClient.useSession()
+
+  // Cycle through loading messages
+  useEffect(() => {
+    if (state !== 'loading') return
+    let index = 0
+    setLoadingMessage(LOADING_MESSAGES[0])
+    const interval = setInterval(() => {
+      index = (index + 1) % LOADING_MESSAGES.length
+      setLoadingMessage(LOADING_MESSAGES[index])
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [state])
 
   // Fetch Spotify access token when authenticated
   useEffect(() => {
@@ -37,8 +59,6 @@ export default function GeneratePage() {
     }
 
     fetchToken()
-
-    // Refresh token every 50 minutes
     const interval = setInterval(fetchToken, 50 * 60 * 1000)
     return () => clearInterval(interval)
   }, [session])
@@ -53,18 +73,18 @@ export default function GeneratePage() {
     imageBase64?: string,
     imageMediaType?: string
   ) => {
-    setIsLoading(true)
+    setState('loading')
     setResult(null)
     setWorkoutText(text)
     try {
       const data = await generatePlaylist(text, imageBase64, imageMediaType)
       setResult(data)
-      toast.success('Playlist generated successfully!')
+      setState('results')
+      toast.success('Playlist generated!')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
       toast.error(message)
-    } finally {
-      setIsLoading(false)
+      setState('empty')
     }
   }
 
@@ -96,6 +116,16 @@ export default function GeneratePage() {
     [spotifyPlayer]
   )
 
+  const handleNewWorkout = () => {
+    setResult(null)
+    setWorkoutText('')
+    setState('empty')
+  }
+
+  const handleEdit = () => {
+    setState('empty')
+  }
+
   return (
     <div>
       <PageHeader
@@ -108,37 +138,79 @@ export default function GeneratePage() {
           </div>
         }
       />
-      <div className="container mx-auto px-4 max-w-5xl">
-      <div className="mb-6">
-        <WorkoutForm onSubmit={handleSubmit} isLoading={isLoading} />
+      <div className="container mx-auto px-4 max-w-5xl space-y-4">
+        {/* Workout input — full or compact */}
+        {state === 'results' ? (
+          <WorkoutForm
+            onSubmit={handleSubmit}
+            isLoading={false}
+            isCompact
+            compactText={workoutText || result?.workout.workout_name}
+            onEdit={handleEdit}
+            onNewWorkout={handleNewWorkout}
+          />
+        ) : (
+          <WorkoutForm
+            onSubmit={handleSubmit}
+            isLoading={state === 'loading'}
+          />
+        )}
+
+        {/* Loading state */}
+        {state === 'loading' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+              <div className="h-1 flex-1 rounded-full bg-[var(--secondary)] overflow-hidden">
+                <div className="h-full bg-[var(--accent)] rounded-full animate-pulse" style={{ width: '60%' }} />
+              </div>
+              <span>{loadingMessage}</span>
+            </div>
+            <GenerateSkeleton />
+          </div>
+        )}
+
+        {/* Results state */}
+        {state === 'results' && result && (
+          <div className="space-y-4 animate-fade-slide-up">
+            {/* Save button */}
+            {session && (
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                  {isSaving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            )}
+
+            <WorkoutDisplay workout={result.workout} />
+            <PlaylistDisplay
+              playlist={result.playlist}
+              phases={result.workout.phases}
+              spotifyToken={spotifyToken}
+              onPlayTrack={spotifyPlayer.isReady ? handlePlayTrack : undefined}
+              currentTrackUri={spotifyPlayer.currentTrackUri}
+              isPlaying={spotifyPlayer.isPlaying}
+            />
+          </div>
+        )}
+
+        {/* Empty state */}
+        {state === 'empty' && !result && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <AudioLines className="h-10 w-10 text-[var(--border)] mb-3" />
+            <p className="text-sm text-[var(--muted)]">
+              Your workout breakdown and playlist will appear here
+            </p>
+          </div>
+        )}
       </div>
 
-      {result && (
-        <div className="space-y-6 animate-fade-slide-up">
-          {session && (
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSave}
-                disabled={isSaving}
-                variant="outline"
-                size="sm"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Playlist'}
-              </Button>
-            </div>
-          )}
-          <WorkoutDisplay workout={result.workout} />
-          <PlaylistDisplay
-            playlist={result.playlist}
-            spotifyToken={spotifyToken}
-            onPlayTrack={spotifyPlayer.isReady ? handlePlayTrack : undefined}
-            currentTrackUri={spotifyPlayer.currentTrackUri}
-            isPlaying={spotifyPlayer.isPlaying}
-          />
-        </div>
-      )}
-
+      {/* Spotify player bar */}
       {spotifyPlayer.isReady && result && (
         <div className="fixed bottom-20 left-0 right-0 z-30 border-t border-[var(--border)] bg-white/95 backdrop-blur">
           <div className="container mx-auto px-4 max-w-5xl">
@@ -158,7 +230,6 @@ export default function GeneratePage() {
           </div>
         </div>
       )}
-      </div>
     </div>
   )
 }

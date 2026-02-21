@@ -1,26 +1,56 @@
 'use client'
 
-import type { Track, Playlist } from '@crossfit-playlist/shared'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { Track, Playlist, Phase, IntensityLevel } from '@crossfit-playlist/shared'
 import { Button } from '@/components/ui/button'
-import { Music, Clock, Play, ExternalLink } from 'lucide-react'
+import { Badge, getPhaseVariant } from '@/components/ui/badge'
+import { BpmBars } from '@/components/viz/bpm-bars'
+import { EnergyBar } from '@/components/viz/energy-bar'
+import { Play, Pause, ExternalLink, Music } from 'lucide-react'
 import { formatDuration, formatTotalDuration } from '@/lib/utils'
 import { SpotifyFallback } from '@/components/spotify-player'
 
 interface PlaylistDisplayProps {
   playlist: Playlist
-  /** Spotify access token for Web Playback SDK (optional) */
+  /** Workout phases — used to assign tracks to phases */
+  phases?: Phase[]
   spotifyToken?: string | null
-  /** Called when user clicks play on a track with a spotify_uri */
   onPlayTrack?: (uri: string) => void
-  /** URI of the currently playing track */
   currentTrackUri?: string | null
-  /** Whether the player is currently playing */
   isPlaying?: boolean
+}
+
+const INTENSITY_LABELS: Record<IntensityLevel, string> = {
+  warm_up: 'Warm Up',
+  low: 'Low',
+  moderate: 'Moderate',
+  high: 'High',
+  very_high: 'Very High',
+  cooldown: 'Cooldown',
+}
+
+/** Match a track's BPM to the closest workout phase */
+function matchTrackToPhase(bpm: number, phases: Phase[]): IntensityLevel | null {
+  for (const phase of phases) {
+    const [min, max] = phase.bpm_range
+    if (bpm >= min && bpm <= max) return phase.intensity
+  }
+  // Find closest if no exact match
+  let closest: Phase | null = null
+  let minDist = Infinity
+  for (const phase of phases) {
+    const mid = (phase.bpm_range[0] + phase.bpm_range[1]) / 2
+    const dist = Math.abs(bpm - mid)
+    if (dist < minDist) {
+      minDist = dist
+      closest = phase
+    }
+  }
+  return closest?.intensity ?? null
 }
 
 export function PlaylistDisplay({
   playlist,
+  phases,
   spotifyToken,
   onPlayTrack,
   currentTrackUri,
@@ -29,120 +59,129 @@ export function PlaylistDisplay({
   const hasSpotifyTracks = playlist.tracks.some((t) => t.spotify_uri || t.spotify_url)
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Music className="h-5 w-5" aria-hidden="true" />
-          {playlist.name}
-        </CardTitle>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" aria-hidden="true" />
-          <span>{playlist.tracks.length} tracks · {formatTotalDuration(playlist.tracks)} total</span>
+    <div className="space-y-2">
+      {/* Header row */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+          <Music className="h-3.5 w-3.5" />
+          <span>{playlist.tracks.length} tracks</span>
+          <span className="text-[var(--border)]">/</span>
+          <span className="font-mono">{formatTotalDuration(playlist.tracks)}</span>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div role="list" aria-label={`Playlist tracks, ${playlist.tracks.length} total`}>
-          {playlist.tracks.map((track, index) => {
-            const isCurrentTrack = currentTrackUri && track.spotify_uri === currentTrackUri
-            const canPlay = !!onPlayTrack && !!track.spotify_uri
+      </div>
 
-            return (
-              <div
-                key={track.id}
-                role="listitem"
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors mb-2 last:mb-0 ${
-                  isCurrentTrack
-                    ? 'bg-primary/10 border-primary/30'
-                    : 'bg-card hover:bg-accent/50'
-                }`}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {/* Track number / play button */}
-                  <div className="w-8 flex-shrink-0 flex justify-center">
-                    {canPlay ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => onPlayTrack!(track.spotify_uri!)}
-                        aria-label={`Play ${track.name}`}
-                      >
-                        {isCurrentTrack && isPlaying ? (
-                          <span className="flex gap-0.5" aria-label="Playing">
-                            <span className="w-0.5 h-3 bg-primary animate-pulse" />
-                            <span className="w-0.5 h-3 bg-primary animate-pulse delay-75" />
-                            <span className="w-0.5 h-3 bg-primary animate-pulse delay-150" />
-                          </span>
-                        ) : (
-                          <Play className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
+      {/* Track rows */}
+      <div role="list" aria-label={`Playlist tracks, ${playlist.tracks.length} total`}>
+        {playlist.tracks.map((track, index) => {
+          const isCurrentTrack = currentTrackUri && track.spotify_uri === currentTrackUri
+          const canPlay = !!onPlayTrack && !!track.spotify_uri
+          const phaseIntensity = phases ? matchTrackToPhase(track.bpm, phases) : null
+
+          return (
+            <div
+              key={track.id}
+              role="listitem"
+              className={`
+                flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors
+                ${isCurrentTrack
+                  ? 'bg-[var(--accent)]/5 border-l-2 border-l-[var(--accent)]'
+                  : 'hover:bg-[var(--secondary)] border-l-2 border-l-transparent'
+                }
+                animate-fade-slide-up
+              `}
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
+              {/* Track number / play button */}
+              <div className="w-7 flex-shrink-0 flex justify-center">
+                {canPlay ? (
+                  <button
+                    onClick={() => onPlayTrack!(track.spotify_uri!)}
+                    className="h-6 w-6 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                    aria-label={`Play ${track.name}`}
+                  >
+                    {isCurrentTrack && isPlaying ? (
+                      <Pause className="h-3 w-3" />
                     ) : (
-                      <span
-                        className="text-sm font-medium text-muted-foreground"
-                        aria-label={`Track ${index + 1}`}
-                      >
-                        {index + 1}
-                      </span>
+                      <Play className="h-3 w-3 ml-0.5" />
                     )}
-                  </div>
+                  </button>
+                ) : (
+                  <span className="font-mono text-xs text-[var(--muted)]">
+                    {index + 1}
+                  </span>
+                )}
+              </div>
 
-                  {/* Album art */}
-                  {track.album_art_url && (
-                    <img
-                      src={track.album_art_url}
-                      alt=""
-                      className="w-10 h-10 rounded flex-shrink-0"
-                      loading="lazy"
-                    />
-                  )}
+              {/* Album art */}
+              {track.album_art_url && (
+                <img
+                  src={track.album_art_url}
+                  alt=""
+                  className="w-8 h-8 rounded flex-shrink-0"
+                  loading="lazy"
+                />
+              )}
 
-                  {/* Track info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate" title={track.name}>
-                      {track.name}
-                    </div>
-                    <div className="text-sm text-muted-foreground truncate" title={track.artist}>
-                      {track.artist}
-                    </div>
-                  </div>
+              {/* Track name + artist */}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate" title={track.name}>
+                  {track.name}
                 </div>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
-                  <div className="text-right">
-                    <div className="font-mono" aria-label={`${track.bpm} beats per minute`}>
-                      {track.bpm} BPM
-                    </div>
-                    <div className="text-xs" aria-label={`${Math.round(track.energy * 100)} percent energy`}>
-                      {Math.round(track.energy * 100)}% energy
-                    </div>
-                  </div>
-                  <div className="font-mono w-12 text-right">
-                    {formatDuration(track.duration_ms)}
-                  </div>
-                  {/* Spotify link */}
-                  {track.spotify_url && (
-                    <a
-                      href={track.spotify_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={`Open ${track.name} in Spotify`}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  )}
+                <div className="text-xs text-[var(--muted)] truncate" title={track.artist}>
+                  {track.artist}
                 </div>
               </div>
-            )
-          })}
-        </div>
 
-        {/* Spotify fallback for non-Premium or no SDK */}
-        {hasSpotifyTracks && !spotifyToken && (
-          <SpotifyFallback tracks={playlist.tracks} />
-        )}
-      </CardContent>
-    </Card>
+              {/* BPM bars + value */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <BpmBars bpm={track.bpm} />
+                <span className="font-mono text-xs w-7 text-right">{track.bpm}</span>
+              </div>
+
+              {/* Energy bar + value */}
+              <div className="flex items-center gap-1.5 flex-shrink-0 hidden sm:flex">
+                <EnergyBar energy={track.energy} width={36} height={3} />
+                <span className="font-mono text-xs w-7 text-right text-[var(--muted)]">
+                  {Math.round(track.energy * 100)}%
+                </span>
+              </div>
+
+              {/* Duration */}
+              <span className="font-mono text-xs text-[var(--muted)] w-10 text-right flex-shrink-0">
+                {formatDuration(track.duration_ms)}
+              </span>
+
+              {/* Phase badge */}
+              {phaseIntensity && (
+                <Badge
+                  variant={getPhaseVariant(phaseIntensity, true)}
+                  className="text-[9px] px-1.5 py-0 hidden md:inline-flex flex-shrink-0"
+                >
+                  {INTENSITY_LABELS[phaseIntensity]}
+                </Badge>
+              )}
+
+              {/* Spotify link */}
+              {track.spotify_url && (
+                <a
+                  href={track.spotify_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors flex-shrink-0"
+                  aria-label={`Open ${track.name} in Spotify`}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Spotify fallback for non-Premium or no SDK */}
+      {hasSpotifyTracks && !spotifyToken && (
+        <SpotifyFallback tracks={playlist.tracks} />
+      )}
+    </div>
   )
 }
