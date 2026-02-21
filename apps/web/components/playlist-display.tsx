@@ -52,6 +52,14 @@ export function PlaylistDisplay({ playlist }: PlaylistDisplayProps) {
                 >
                   {index + 1}
                 </div>
+                {track.album_art_url && (
+                  <img
+                    src={track.album_art_url}
+                    alt=""
+                    className="w-10 h-10 rounded flex-shrink-0"
+                    loading="lazy"
+                  />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate" title={track.name}>
                     {track.name}
@@ -97,4 +105,3 @@ export function PlaylistDisplay({ playlist }: PlaylistDisplayProps) {
     </Card>
   )
 }
-

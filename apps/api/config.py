@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     spotify_client_secret: Optional[str] = None
     spotify_redirect_uri: str = "http://localhost:8000/api/v1/spotify/callback"
 
+    # Claude Model Configuration
+    anthropic_model: str = "claude-haiku-4-5-20251001"
+
+    # Music Source Configuration
+    music_source: str = "mock"  # "mock", "getsongbpm", "soundnet", "claude"
+    getsongbpm_api_key: Optional[str] = None
+    soundnet_api_key: Optional[str] = None
+
     # Feature Flags
     use_mock_anthropic: bool = True
     use_mock_spotify: bool = True
@@ -23,7 +31,7 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "info"
     frontend_url: str = "http://localhost:3000"
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -48,4 +56,3 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
-

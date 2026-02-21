@@ -6,14 +6,31 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const REQUEST_TIMEOUT_MS = 30000 // 30 seconds
 const MAX_WORKOUT_TEXT_LENGTH = 5000
 
-export async function generatePlaylist(workoutText: string): Promise<GeneratePlaylistResponse> {
+export async function generatePlaylist(
+  workoutText: string,
+  imageBase64?: string,
+  imageMediaType?: string
+): Promise<GeneratePlaylistResponse> {
+  const hasText = workoutText?.trim()
+  const hasImage = imageBase64 && imageMediaType
+
   // Input validation
-  if (!workoutText?.trim()) {
-    throw new Error('Workout text is required')
+  if (!hasText && !hasImage) {
+    throw new Error('Either workout text or an image is required')
   }
 
-  if (workoutText.length > MAX_WORKOUT_TEXT_LENGTH) {
+  if (hasText && workoutText.length > MAX_WORKOUT_TEXT_LENGTH) {
     throw new Error(`Workout text is too long (max ${MAX_WORKOUT_TEXT_LENGTH} characters)`)
+  }
+
+  // Build request body
+  const body: Record<string, string | undefined> = {}
+  if (hasText) body.workout_text = workoutText
+  if (hasImage) {
+    body.workout_image_base64 = imageBase64
+    body.image_media_type = imageMediaType
+    // Text serves as additional context when image is provided
+    if (hasText) body.workout_text = workoutText
   }
 
   // Create abort controller for timeout
@@ -26,7 +43,7 @@ export async function generatePlaylist(workoutText: string): Promise<GeneratePla
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ workout_text: workoutText }),
+      body: JSON.stringify(body),
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -50,4 +67,3 @@ export async function generatePlaylist(workoutText: string): Promise<GeneratePla
     clearTimeout(timeoutId)
   }
 }
-

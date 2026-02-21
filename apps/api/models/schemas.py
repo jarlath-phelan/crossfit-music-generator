@@ -16,7 +16,7 @@ class Phase(BaseModel):
     duration_min: int = Field(..., gt=0, description="Duration in minutes")
     intensity: IntensityLevel = Field(..., description="Intensity level of the phase")
     bpm_range: tuple[int, int] = Field(..., description="Target BPM range for music")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -33,7 +33,7 @@ class WorkoutStructure(BaseModel):
     workout_name: str = Field(..., description="Name/type of the workout")
     total_duration_min: int = Field(..., gt=0, description="Total workout duration")
     phases: list[Phase] = Field(..., min_length=1, description="Workout phases")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -65,14 +65,16 @@ class WorkoutStructure(BaseModel):
 
 class Track(BaseModel):
     """Represents a music track with audio features"""
-    id: str = Field(..., description="Spotify track ID")
+    id: str = Field(..., description="Track ID (source-specific or Spotify)")
     name: str = Field(..., description="Track name")
     artist: str = Field(..., description="Artist name")
     bpm: int = Field(..., gt=0, description="Beats per minute")
     energy: float = Field(..., ge=0, le=1, description="Energy level (0-1)")
     duration_ms: int = Field(..., gt=0, description="Track duration in milliseconds")
     spotify_url: Optional[str] = Field(None, description="Spotify URL for the track")
-    
+    spotify_uri: Optional[str] = Field(None, description="Spotify URI for playback")
+    album_art_url: Optional[str] = Field(None, description="Album art image URL")
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -92,7 +94,7 @@ class Playlist(BaseModel):
     name: str = Field(..., description="Playlist name")
     tracks: list[Track] = Field(..., min_length=1, description="Ordered list of tracks")
     spotify_url: Optional[str] = Field(None, description="Spotify playlist URL")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -104,12 +106,20 @@ class Playlist(BaseModel):
 
 
 class GeneratePlaylistRequest(BaseModel):
-    """Request to generate a playlist from workout text"""
-    workout_text: str = Field(
-        ...,
+    """Request to generate a playlist from workout text or image"""
+    workout_text: Optional[str] = Field(
+        None,
         min_length=5,
         max_length=5000,
         description="CrossFit workout description (max 5000 characters)"
+    )
+    workout_image_base64: Optional[str] = Field(
+        None,
+        description="Base64-encoded image of workout (e.g. whiteboard photo)"
+    )
+    image_media_type: Optional[str] = Field(
+        None,
+        description="MIME type of the image (e.g. 'image/jpeg', 'image/png')"
     )
 
     class Config:
@@ -127,11 +137,11 @@ class GeneratePlaylistResponse(BaseModel):
 
 
 # ============================================================================
-# FUTURE MODELS (Phase 1+)
-# Commented out for MVP - uncomment when implementing multi-user features
+# FUTURE MODELS (Phase 4+)
+# Commented out for now - uncomment when implementing auth & persistence
 # ============================================================================
 
-# Phase 1: Coach Profiles with Music Preferences
+# Phase 4: Coach Profiles with Music Preferences
 """
 class MusicPreferences(BaseModel):
     genres: list[str] = Field(default_factory=lambda: ["rock"])
@@ -149,52 +159,3 @@ class CoachProfile(BaseModel):
     created_at: datetime
     updated_at: datetime
 """
-
-# Phase 2: Multi-User with Attendee Preferences
-"""
-class Attendee(BaseModel):
-    id: str
-    user_id: str
-    name: str
-    music_preferences: Optional[MusicPreferences] = None
-    created_at: datetime
-
-
-class ClassSession(BaseModel):
-    id: str
-    coach_id: str
-    workout_text: str
-    scheduled_at: datetime
-    attendee_ids: list[str]
-    playlist_id: Optional[str] = None
-    created_at: datetime
-
-
-class TrackFeedback(BaseModel):
-    id: str
-    session_id: str
-    track_id: str
-    user_id: str
-    rating: int = Field(..., ge=1, le=5)
-    created_at: datetime
-"""
-
-# Phase 3: Realtime Biometric Integration
-"""
-class BiometricData(BaseModel):
-    id: str
-    session_id: str
-    user_id: str
-    heart_rate: int = Field(..., gt=0)
-    timestamp: datetime
-    created_at: datetime
-
-
-class PlaylistAdjustment(BaseModel):
-    session_id: str
-    avg_heart_rate: int
-    target_intensity: IntensityLevel
-    adjustment_type: Literal["skip", "boost", "maintain"]
-    next_track_id: Optional[str] = None
-"""
-

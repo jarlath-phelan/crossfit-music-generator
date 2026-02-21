@@ -13,12 +13,16 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<GeneratePlaylistResponse | null>(null)
 
-  const handleSubmit = async (workoutText: string) => {
+  const handleSubmit = async (
+    workoutText: string,
+    imageBase64?: string,
+    imageMediaType?: string
+  ) => {
     setIsLoading(true)
     setResult(null)
 
     try {
-      const data = await generatePlaylist(workoutText)
+      const data = await generatePlaylist(workoutText, imageBase64, imageMediaType)
       setResult(data)
       toast.success('Playlist generated successfully!')
     } catch (error) {
@@ -42,8 +46,7 @@ export default function Home() {
             </h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Generate custom workout playlists from your CrossFit workout descriptions.
-            Powered by AI-driven music curation matching your workout intensity.
+            Snap the whiteboard or type your workout. Get an intensity-matched playlist in seconds.
           </p>
         </div>
 
@@ -63,14 +66,10 @@ export default function Home() {
         {/* Footer */}
         <footer className="mt-16 text-center text-sm text-muted-foreground">
           <p>
-            MVP powered by mock APIs · No Spotify or Anthropic keys required
-          </p>
-          <p className="mt-2">
-            Future features: Coach profiles, Multi-user sessions, Real-time biometric adjustment
+            Powered by Claude AI for workout parsing
           </p>
         </footer>
       </div>
     </main>
   )
 }
-

@@ -2,9 +2,9 @@
  * Shared TypeScript types matching backend Pydantic models
  */
 
-export type IntensityLevel = 
+export type IntensityLevel =
   | "warm_up"
-  | "low" 
+  | "low"
   | "moderate"
   | "high"
   | "very_high"
@@ -31,6 +31,8 @@ export interface Track {
   energy: number;
   duration_ms: number;
   spotify_url?: string;
+  spotify_uri?: string;
+  album_art_url?: string;
 }
 
 export interface Playlist {
@@ -40,7 +42,9 @@ export interface Playlist {
 }
 
 export interface GeneratePlaylistRequest {
-  workout_text: string;
+  workout_text?: string;
+  workout_image_base64?: string;
+  image_media_type?: string;
 }
 
 export interface GeneratePlaylistResponse {
@@ -48,7 +52,7 @@ export interface GeneratePlaylistResponse {
   playlist: Playlist;
 }
 
-// Future Types (Phase 1+)
+// Future Types (Phase 4+)
 export interface CoachProfile {
   id: string;
   user_id: string;
@@ -62,23 +66,6 @@ export interface CoachProfile {
   updated_at: string;
 }
 
-export interface Attendee {
-  id: string;
-  user_id: string;
-  name: string;
-  created_at: string;
-}
-
-export interface ClassSession {
-  id: string;
-  coach_id: string;
-  workout_text: string;
-  scheduled_at: string;
-  attendee_ids: string[];
-  playlist_id?: string;
-  created_at: string;
-}
-
 export interface TrackFeedback {
   id: string;
   session_id: string;
@@ -87,4 +74,3 @@ export interface TrackFeedback {
   rating: number;
   created_at: string;
 }
-

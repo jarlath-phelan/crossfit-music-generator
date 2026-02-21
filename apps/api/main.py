@@ -54,8 +54,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title="CrossFit Playlist Generator API",
-    description="Generate workout playlists from CrossFit workout text",
-    version="1.0.0",
+    description="Generate workout playlists from CrossFit workout text or photos",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -78,7 +78,7 @@ async def root():
     """Root endpoint with API information"""
     return {
         "name": "CrossFit Playlist Generator API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "operational",
         "docs": "/docs",
         "endpoints": {
@@ -87,7 +87,8 @@ async def root():
         "mock_mode": {
             "anthropic": settings.use_mock_anthropic,
             "spotify": settings.use_mock_spotify
-        }
+        },
+        "music_source": settings.music_source,
     }
 
 
@@ -118,7 +119,8 @@ async def health_check():
             "mock_mode": {
                 "anthropic": settings.use_mock_anthropic,
                 "spotify": settings.use_mock_spotify
-            }
+            },
+            "music_source": settings.music_source,
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -133,56 +135,73 @@ async def health_check():
 @limiter.limit("10/minute")
 async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     """
-    Generate a playlist from workout text.
+    Generate a playlist from workout text or image.
+
+    Accepts either:
+    - workout_text: Text description of a workout
+    - workout_image_base64 + image_media_type: Photo of a whiteboard
 
     Rate limit: 10 requests per minute per IP address.
 
-    This endpoint:
-    1. Parses the workout text into structured phases
-    2. Curates music tracks matching each phase's intensity
-    3. Composes an optimized playlist with smooth transitions
-
-    Args:
-        body: Contains workout_text string
-        request: FastAPI Request object (for rate limiting)
-
-    Returns:
-        GeneratePlaylistResponse with workout structure and playlist
-
-    Raises:
-        HTTPException: If parsing or generation fails
-        RateLimitExceeded: If rate limit is exceeded
+    Pipeline:
+    1. Parse workout (text or image) → structured phases
+    2. Find tracks matching each phase's BPM range
+    3. Score and rank candidates
+    4. Compose optimized playlist with smooth transitions
     """
-    logger.info(f"Received playlist generation request: {body.workout_text[:50]}...")
-    
+    has_text = body.workout_text and body.workout_text.strip()
+    has_image = body.workout_image_base64 and body.image_media_type
+
+    if not has_text and not has_image:
+        raise HTTPException(
+            status_code=400,
+            detail="Either workout_text or workout_image_base64 (with image_media_type) is required"
+        )
+
+    if has_text:
+        logger.info(f"Received text-based request: {body.workout_text[:50]}...")
+    else:
+        logger.info(f"Received image-based request ({body.image_media_type})")
+
     try:
         # Step 1: Parse workout
         logger.info("Step 1: Parsing workout...")
-        workout = workout_parser.parse_and_validate(body.workout_text)
+        if has_image:
+            workout = workout_parser.parse_image_and_validate(
+                body.workout_image_base64,
+                body.image_media_type,
+                additional_text=body.workout_text or "",
+            )
+        else:
+            workout = workout_parser.parse_and_validate(body.workout_text)
         logger.info(f"Parsed workout: {workout.workout_name} ({workout.total_duration_min} min)")
-        
+
         # Step 2: Compose playlist
         logger.info("Step 2: Composing playlist...")
         playlist = playlist_composer.compose_and_validate(workout)
         logger.info(f"Composed playlist: {len(playlist.tracks)} tracks")
-        
+
         # Return response
         response = GeneratePlaylistResponse(
             workout=workout,
             playlist=playlist
         )
-        
+
         logger.info("Successfully generated playlist")
         return response
-        
+
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+    except NotImplementedError as e:
+        logger.error(f"Feature not available: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Failed to generate playlist: {str(e)}"
         )
 
@@ -209,4 +228,3 @@ if __name__ == "__main__":
         reload=True,
         log_level=settings.log_level
     )
-
