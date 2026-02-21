@@ -11,6 +11,9 @@ import { SpotifyPlayer } from '@/components/spotify-player'
 import { useSpotifyPlayer } from '@/hooks/use-spotify-player'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/page-header'
+import { UserMenu } from '@/components/auth/user-menu'
+import { Badge } from '@/components/ui/badge'
 import { Save } from 'lucide-react'
 
 export default function GeneratePage() {
@@ -94,7 +97,18 @@ export default function GeneratePage() {
   )
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
+    <div>
+      <PageHeader
+        title="Generate"
+        showLogo
+        rightContent={
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px]">MOCK</Badge>
+            <UserMenu />
+          </div>
+        }
+      />
+      <div className="container mx-auto px-4 max-w-5xl">
       <div className="mb-6">
         <WorkoutForm onSubmit={handleSubmit} isLoading={isLoading} />
       </div>
@@ -144,6 +158,7 @@ export default function GeneratePage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
