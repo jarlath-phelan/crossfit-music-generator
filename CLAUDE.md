@@ -13,7 +13,7 @@ CrossFit Playlist Generator - AI-driven music curation for CrossFit workouts. Pa
 ```
 crossfit-music-generator/
 ├── apps/
-│   ├── web/                  # Next.js 15 frontend (React 19, Tailwind v4)
+│   ├── web/                  # Next.js 16 frontend (React 19, Tailwind v4)
 │   └── api/                  # FastAPI backend (Python 3.11+)
 │       ├── agents/           # Three-agent pipeline
 │       ├── clients/          # Real API clients (Anthropic, Spotify)
@@ -239,6 +239,20 @@ The app is a Progressive Web App using Next.js built-in support (no external PWA
 - PWA icons: `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png`
 
 Camera uses `navigator.mediaDevices.getUserMedia()` for live viewfinder with progressive enhancement fallback to `<input capture>`.
+
+## Deployment
+
+**Production**: https://crossfit-music-generator.vercel.app
+
+Deployed on Vercel from the monorepo root with `rootDirectory: apps/web` and `sourceFilesOutsideRootDirectory: true` (configured via Vercel project settings).
+
+```bash
+vercel --prod              # Deploy to production
+vercel                     # Preview deploy
+vercel logs <url>          # Check build logs
+```
+
+Vercel config: `apps/web/vercel.json` (framework: nextjs). Environment variables (`BETTER_AUTH_SECRET`, `DATABASE_URL`, Spotify credentials) must be set in the Vercel dashboard.
 
 ## Future Phases
 
