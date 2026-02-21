@@ -137,20 +137,19 @@ class GeneratePlaylistResponse(BaseModel):
 
 
 # ============================================================================
-# FUTURE MODELS (Phase 4+)
-# Commented out for now - uncomment when implementing auth & persistence
+# Phase 4: Coach Profiles with Music Preferences
 # ============================================================================
 
-# Phase 4: Coach Profiles with Music Preferences
-"""
 class MusicPreferences(BaseModel):
+    """Music preferences for a coach profile"""
     genres: list[str] = Field(default_factory=lambda: ["rock"])
     exclude_artists: list[str] = Field(default_factory=list)
     min_energy: float = Field(default=0.5, ge=0, le=1)
-    max_explicit: bool = Field(default=False)
+    allow_explicit: bool = Field(default=False)
 
 
 class CoachProfile(BaseModel):
+    """Coach profile with music preferences"""
     id: str
     user_id: str
     name: str
@@ -158,4 +157,3 @@ class CoachProfile(BaseModel):
     music_preferences: MusicPreferences
     created_at: datetime
     updated_at: datetime
-"""

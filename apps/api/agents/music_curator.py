@@ -58,7 +58,8 @@ class MusicCuratorAgent:
     def search_tracks(self,
                      phase: Phase,
                      limit: int = 20,
-                     genre: Optional[str] = None) -> list[Track]:
+                     genre: Optional[str] = None,
+                     min_energy: Optional[float] = None) -> list[Track]:
         """
         Search for tracks matching phase requirements.
 
@@ -66,12 +67,14 @@ class MusicCuratorAgent:
             phase: Workout phase with BPM and intensity requirements
             limit: Maximum number of tracks to return
             genre: Music genre preference (defaults to rock)
+            min_energy: Minimum energy override (uses intensity default if None)
 
         Returns:
             List of candidate tracks
         """
         bpm_min, bpm_max = phase.bpm_range
-        min_energy = self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
+        if min_energy is None:
+            min_energy = self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
 
         logger.info(f"Searching tracks for {phase.name}: BPM {bpm_min}-{bpm_max}, energy >= {min_energy}")
 
@@ -152,7 +155,9 @@ class MusicCuratorAgent:
     def select_track_for_phase(self,
                               phase: Phase,
                               used_artists: set[str],
-                              target_duration_ms: Optional[int] = None) -> Optional[Track]:
+                              target_duration_ms: Optional[int] = None,
+                              genre: Optional[str] = None,
+                              min_energy: Optional[float] = None) -> Optional[Track]:
         """
         Select the best track for a workout phase.
 
@@ -160,12 +165,14 @@ class MusicCuratorAgent:
             phase: Workout phase requirements
             used_artists: Artists already used in playlist
             target_duration_ms: Preferred track duration (optional)
+            genre: Optional genre override
+            min_energy: Optional minimum energy override
 
         Returns:
             Selected track or None if no suitable tracks found
         """
         # Search for candidates
-        candidates = self.search_tracks(phase, limit=20)
+        candidates = self.search_tracks(phase, limit=20, genre=genre, min_energy=min_energy)
 
         if not candidates:
             logger.warning(f"No tracks found for phase {phase.name}")

@@ -35,21 +35,30 @@ class PlaylistComposerAgent:
         """
         self.curator = curator
     
-    def compose(self, workout: WorkoutStructure) -> Playlist:
+    def compose(
+        self,
+        workout: WorkoutStructure,
+        genre: Optional[str] = None,
+        min_energy: Optional[float] = None,
+        exclude_artists: Optional[set[str]] = None,
+    ) -> Playlist:
         """
         Compose a complete playlist for a workout.
-        
+
         Args:
             workout: Parsed workout structure with phases
-            
+            genre: Optional genre override from user preferences
+            min_energy: Optional minimum energy override
+            exclude_artists: Optional set of artists to exclude
+
         Returns:
             Complete playlist with ordered tracks
         """
         logger.info(f"Composing playlist for '{workout.workout_name}'")
-        
+
         tracks = []
-        used_artists = set()
-        
+        used_artists = set(exclude_artists or set())
+
         for i, phase in enumerate(workout.phases):
             # Calculate target duration for this phase
             phase_duration_ms = phase.duration_min * MS_PER_MINUTE
@@ -58,7 +67,9 @@ class PlaylistComposerAgent:
             phase_tracks = self._select_tracks_for_phase(
                 phase,
                 phase_duration_ms,
-                used_artists
+                used_artists,
+                genre=genre,
+                min_energy=min_energy,
             )
 
             tracks.extend(phase_tracks)
@@ -81,18 +92,24 @@ class PlaylistComposerAgent:
         
         return playlist
     
-    def _select_tracks_for_phase(self,
-                                 phase: Phase,
-                                 target_duration_ms: int,
-                                 used_artists: set[str]) -> list[Track]:
+    def _select_tracks_for_phase(
+        self,
+        phase: Phase,
+        target_duration_ms: int,
+        used_artists: set[str],
+        genre: Optional[str] = None,
+        min_energy: Optional[float] = None,
+    ) -> list[Track]:
         """
         Select one or more tracks to fill a phase duration.
-        
+
         Args:
             phase: Workout phase
             target_duration_ms: Target duration in milliseconds
             used_artists: Set of artists already used
-            
+            genre: Optional genre override
+            min_energy: Optional minimum energy override
+
         Returns:
             List of tracks for this phase
         """
@@ -109,35 +126,39 @@ class PlaylistComposerAgent:
             # Stop if we're very close to target
             if remaining_ms < MIN_REMAINING_DURATION_MS:
                 break
-            
+
             # Select next track
             track = self.curator.select_track_for_phase(
-                phase, 
+                phase,
                 used_artists,
-                target_duration_ms=remaining_ms
+                target_duration_ms=remaining_ms,
+                genre=genre,
+                min_energy=min_energy,
             )
-            
+
             if not track:
                 logger.warning(f"Could not find more tracks for phase {phase.name}")
                 break
-            
+
             # Check if adding this track would overshoot too much
             new_total = accumulated_duration_ms + track.duration_ms
             if new_total > max_duration and phase_tracks:
                 # Already have at least one track, don't overshoot
                 break
-            
+
             phase_tracks.append(track)
             used_artists.add(track.artist)
             accumulated_duration_ms += track.duration_ms
-        
+
         # Ensure we have at least one track per phase
         if not phase_tracks:
-            track = self.curator.select_track_for_phase(phase, used_artists)
+            track = self.curator.select_track_for_phase(
+                phase, used_artists, genre=genre, min_energy=min_energy,
+            )
             if track:
                 phase_tracks.append(track)
                 used_artists.add(track.artist)
-        
+
         return phase_tracks
     
     def validate_playlist(self, 
@@ -189,21 +210,32 @@ class PlaylistComposerAgent:
                    f"{playlist_duration_min:.1f} min duration")
         return True, None
     
-    def compose_and_validate(self, workout: WorkoutStructure) -> Playlist:
+    def compose_and_validate(
+        self,
+        workout: WorkoutStructure,
+        genre: Optional[str] = None,
+        min_energy: Optional[float] = None,
+        exclude_artists: Optional[set[str]] = None,
+    ) -> Playlist:
         """
         Complete workflow: compose and validate playlist.
-        
+
         Args:
             workout: Parsed workout structure
-            
+            genre: Optional genre override from user preferences
+            min_energy: Optional minimum energy override
+            exclude_artists: Optional set of artists to exclude
+
         Returns:
             Validated playlist
-            
+
         Raises:
             ValueError: If validation fails
         """
         # Compose
-        playlist = self.compose(workout)
+        playlist = self.compose(
+            workout, genre=genre, min_energy=min_energy, exclude_artists=exclude_artists,
+        )
         
         # Validate
         is_valid, error_msg = self.validate_playlist(playlist, workout)

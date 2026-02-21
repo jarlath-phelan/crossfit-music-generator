@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     getsongbpm_api_key: Optional[str] = None
     soundnet_api_key: Optional[str] = None
 
+    # Supabase
+    supabase_url: Optional[str] = None
+    supabase_service_key: Optional[str] = None
+
     # Feature Flags
     use_mock_anthropic: bool = True
     use_mock_spotify: bool = True

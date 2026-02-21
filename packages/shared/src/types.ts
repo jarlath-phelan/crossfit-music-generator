@@ -52,25 +52,43 @@ export interface GeneratePlaylistResponse {
   playlist: Playlist;
 }
 
-// Future Types (Phase 4+)
+// Phase 4: Auth & Persistence
+
+export interface MusicPreferences {
+  genres: string[];
+  exclude_artists: string[];
+  min_energy: number;
+  allow_explicit: boolean;
+}
+
 export interface CoachProfile {
   id: string;
   user_id: string;
-  name: string;
   gym_name?: string;
-  music_preferences: {
-    genres: string[];
-    exclude_artists: string[];
-  };
+  default_genre: string;
+  preferred_genres: string[];
+  exclude_artists: string[];
+  min_energy: number;
+  allow_explicit: boolean;
   created_at: string;
   updated_at: string;
 }
 
+export interface SavedPlaylist {
+  id: string;
+  user_id: string;
+  name: string;
+  workout_text?: string;
+  workout_structure: WorkoutStructure;
+  playlist_data: Playlist;
+  created_at: string;
+}
+
 export interface TrackFeedback {
   id: string;
-  session_id: string;
-  track_id: string;
   user_id: string;
+  playlist_id?: string;
+  track_id: string;
   rating: number;
   created_at: string;
 }

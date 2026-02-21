@@ -84,7 +84,10 @@ app.add_middleware(
     allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=[
+        "Content-Type", "Authorization",
+        "X-User-ID", "X-User-Genre", "X-User-Exclude-Artists", "X-User-Min-Energy",
+    ],
 )
 
 
@@ -203,6 +206,18 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
             detail="Either workout_text or workout_image_base64 (with image_media_type) is required"
         )
 
+    # Extract user preference headers (set by Next.js server actions)
+    user_id = request.headers.get("X-User-ID")
+    user_genre = request.headers.get("X-User-Genre")
+    user_exclude_artists = request.headers.get("X-User-Exclude-Artists")
+    user_min_energy_str = request.headers.get("X-User-Min-Energy")
+    user_min_energy = float(user_min_energy_str) if user_min_energy_str else None
+
+    if user_id:
+        logger.info(f"Authenticated request from user {user_id}")
+    if user_genre:
+        logger.info(f"User genre preference: {user_genre}")
+
     if has_text:
         logger.info(f"Received text-based request: {body.workout_text[:50]}...")
     else:
@@ -221,9 +236,17 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
             workout = workout_parser.parse_and_validate(body.workout_text)
         logger.info(f"Parsed workout: {workout.workout_name} ({workout.total_duration_min} min)")
 
-        # Step 2: Compose playlist
+        # Step 2: Compose playlist (with user preferences)
         logger.info("Step 2: Composing playlist...")
-        playlist = playlist_composer.compose_and_validate(workout)
+        exclude_set = set()
+        if user_exclude_artists:
+            exclude_set = {a.strip() for a in user_exclude_artists.split(",") if a.strip()}
+        playlist = playlist_composer.compose_and_validate(
+            workout,
+            genre=user_genre,
+            min_energy=user_min_energy,
+            exclude_artists=exclude_set,
+        )
         logger.info(f"Composed playlist: {len(playlist.tracks)} tracks")
 
         # Step 3: Resolve on Spotify (if enabled)
