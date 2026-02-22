@@ -1,0 +1,67 @@
+import "users.malloy"
+
+source: generations is duckdb.table('raw_playlists') extend {
+  join_one: users with user_id
+
+  dimension:
+    generation_id is playlist_id
+    generation_date is generated_at::date
+    genre is genre
+    workout_type is workout_type
+    workout_name is workout_name
+    input_mode is input_mode
+    is_named_wod is workout_name != null
+    bpm_bucket is pick
+      'Low (< 120)' when peak_bpm < 120
+      'Medium (120-150)' when peak_bpm < 150
+      'High (150+)' when peak_bpm >= 150
+    latency_tier is pick
+      'Fast (< 10s)' when elapsed_ms < 10000
+      'Normal (10-30s)' when elapsed_ms < 30000
+      'Slow (30s+)' when elapsed_ms >= 30000
+
+  measure:
+    total_generations is count()
+    unique_generators is count(distinct user_id)
+    avg_tracks is track_count.avg()
+    avg_elapsed_ms is elapsed_ms.avg()
+    avg_duration_min is (duration_ms / 60000.0).avg()
+    max_peak_bpm is peak_bpm.max()
+
+  view: daily_by_genre is {
+    group_by: generation_date, genre
+    aggregate: total_generations
+    order_by: generation_date
+  }
+
+  view: genre_summary is {
+    group_by: genre
+    aggregate:
+      total_generations
+      unique_generators
+      avg_tracks
+      avg_elapsed_ms
+    order_by: total_generations desc
+  }
+
+  view: workout_type_breakdown is {
+    group_by: workout_type
+    aggregate:
+      total_generations
+      avg_tracks
+      avg_duration_min
+    order_by: total_generations desc
+  }
+
+  view: performance_percentiles is {
+    group_by: latency_tier
+    aggregate: total_generations
+    order_by: latency_tier
+  }
+
+  view: input_mode_summary is {
+    group_by: input_mode
+    aggregate: total_generations, unique_generators
+    order_by: total_generations desc
+  }
+}

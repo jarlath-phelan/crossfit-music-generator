@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: stg_playlists
+    description: Cleaned playlist generation records
+    columns:
+      - name: playlist_id
+        description: Unique playlist identifier
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: User who generated the playlist
+      - name: genre
+        description: Genre used for playlist generation
+      - name: workout_type
+        description: Type of workout (AMRAP, For Time, etc.)
+      - name: workout_name
+        description: Named WOD if applicable (Fran, Murph, etc.)
+      - name: input_mode
+        description: Input method (text or photo)
+      - name: phase_count
+        description: Number of workout phases
+      - name: track_count
+        description: Number of tracks in the playlist
+      - name: duration_ms
+        description: Total playlist duration in milliseconds
+      - name: peak_bpm
+        description: Highest BPM track in the playlist
+      - name: elapsed_ms
+        description: Pipeline generation time in milliseconds
+      - name: has_spotify
+        description: Whether tracks have Spotify URIs
+      - name: generated_at
+        description: Playlist generation timestamp

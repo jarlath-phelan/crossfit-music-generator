@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: stg_users
+    description: Cleaned user dimension from raw user data
+    columns:
+      - name: user_id
+        description: Unique user identifier
+        tests:
+          - unique
+          - not_null
+      - name: created_at
+        description: Account creation timestamp
+      - name: signup_source
+        description: Acquisition channel or source
+      - name: preferred_genre
+        description: User's preferred music genre
+      - name: has_spotify_premium
+        description: Whether user has Spotify Premium subscription
+      - name: country
+        description: User's country code

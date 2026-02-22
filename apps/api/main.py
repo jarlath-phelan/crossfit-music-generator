@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import logging
 import math
+import time as _time
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
@@ -14,6 +15,11 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from starlette.middleware.base import BaseHTTPMiddleware
+
+try:
+    import posthog as _posthog_module
+except ImportError:
+    _posthog_module = None
 
 from config import settings
 from models.schemas import GeneratePlaylistRequest, GeneratePlaylistResponse, Track
@@ -45,15 +51,35 @@ workout_parser: WorkoutParserAgent
 music_curator: MusicCuratorAgent
 playlist_composer: PlaylistComposerAgent
 spotify_client: Optional[object] = None
+_posthog_enabled = False
+
+
+def _ph_capture(distinct_id: str, event: str, properties: Optional[dict] = None):
+    """Capture a PostHog event. No-ops if PostHog is not configured."""
+    if not _posthog_enabled or _posthog_module is None:
+        return
+    try:
+        _posthog_module.capture(distinct_id, event, properties or {})
+    except Exception:
+        pass  # PostHog should never break the API
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize and cleanup application resources"""
-    global workout_parser, music_curator, playlist_composer, spotify_client
+    global workout_parser, music_curator, playlist_composer, spotify_client, _posthog_enabled
 
     logger.info("Validating configuration...")
     settings.validate_api_keys()
+
+    # Initialize PostHog if configured
+    if settings.posthog_api_key and _posthog_module is not None:
+        _posthog_module.api_key = settings.posthog_api_key
+        _posthog_module.host = "https://us.i.posthog.com"
+        _posthog_enabled = True
+        logger.info("PostHog analytics initialized")
+    else:
+        logger.info("PostHog analytics disabled (no API key or module not installed)")
 
     logger.info("Initializing agents...")
     workout_parser = WorkoutParserAgent()
@@ -77,6 +103,11 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down...")
+    if _posthog_enabled and _posthog_module is not None:
+        try:
+            _posthog_module.shutdown()
+        except Exception:
+            pass
 
 
 # Create FastAPI application
@@ -173,13 +204,12 @@ async def health_check():
         }
 
 
-def _resolve_spotify(playlist) -> None:
+def _resolve_spotify(playlist, distinct_id: str = "anonymous") -> None:
     """Resolve playlist tracks to Spotify URIs if Spotify client is available."""
     if not spotify_client:
         logger.debug("Spotify client not available — skipping track resolution")
         return
 
-    import time as _time
     logger.info("Step 3: Resolving tracks on Spotify...")
     start = _time.time()
     track_dicts = [
@@ -192,6 +222,11 @@ def _resolve_spotify(playlist) -> None:
     except Exception as e:
         elapsed = _time.time() - start
         logger.error(f"Spotify resolution failed after {elapsed:.1f}s: [{type(e).__name__}] {e}")
+        _ph_capture(distinct_id, "spotify_resolution_error", {
+            "elapsed_ms": int(elapsed * 1000),
+            "error_type": type(e).__name__,
+            "track_count": len(track_dicts),
+        })
         return
 
     resolved_count = 0
@@ -213,6 +248,11 @@ def _resolve_spotify(playlist) -> None:
 
     elapsed = _time.time() - start
     logger.info(f"Spotify resolution complete: {resolved_count}/{len(track_dicts)} tracks in {elapsed:.1f}s")
+    _ph_capture(distinct_id, "spotify_resolution_completed", {
+        "elapsed_ms": int(elapsed * 1000),
+        "resolved_count": resolved_count,
+        "total_tracks": len(track_dicts),
+    })
 
 
 @app.post("/api/v1/generate", response_model=GeneratePlaylistResponse)
@@ -283,9 +323,23 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     else:
         logger.info(f"Received image-based request ({body.image_media_type})")
 
+    # Distinct ID for PostHog: prefer user_id, fall back to client IP
+    distinct_id = user_id or get_real_client_ip(request)
+    input_type = "image" if has_image else "text"
+
+    _ph_capture(distinct_id, "api_request_received", {
+        "has_image": bool(has_image),
+        "genre": user_genre,
+        "authenticated": bool(user_id),
+        "input_type": input_type,
+    })
+
+    request_start = _time.time()
+
     try:
         # Step 1: Parse workout
         logger.info("Step 1: Parsing workout...")
+        step1_start = _time.time()
         if has_image:
             workout = workout_parser.parse_image_and_validate(
                 body.workout_image_base64,
@@ -295,9 +349,16 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
         else:
             workout = workout_parser.parse_and_validate(body.workout_text)
         logger.info(f"Parsed workout: {workout.workout_name} ({workout.total_duration_min} min)")
+        _ph_capture(distinct_id, "parsing_completed", {
+            "elapsed_ms": int((_time.time() - step1_start) * 1000),
+            "phase_count": len(workout.phases),
+            "input_type": input_type,
+            "workout_name": workout.workout_name,
+        })
 
         # Step 2: Compose playlist (with user preferences)
         logger.info("Step 2: Composing playlist...")
+        step2_start = _time.time()
         exclude_set = set()
         if user_exclude_artists:
             exclude_set = {a.strip() for a in user_exclude_artists.split(",") if a.strip()}
@@ -316,9 +377,15 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
             hidden_tracks=hidden_set,
         )
         logger.info(f"Composed playlist: {len(playlist.tracks)} tracks")
+        total_duration_ms = sum(t.duration_ms for t in playlist.tracks)
+        _ph_capture(distinct_id, "composition_completed", {
+            "elapsed_ms": int((_time.time() - step2_start) * 1000),
+            "track_count": len(playlist.tracks),
+            "duration_ms": total_duration_ms,
+        })
 
         # Step 3: Resolve on Spotify (if enabled)
-        _resolve_spotify(playlist)
+        _resolve_spotify(playlist, distinct_id=distinct_id)
 
         # Return response
         response = GeneratePlaylistResponse(
@@ -326,19 +393,37 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
             playlist=playlist
         )
 
+        total_elapsed = int((_time.time() - request_start) * 1000)
         logger.info("Successfully generated playlist")
+        _ph_capture(distinct_id, "api_request_completed", {
+            "elapsed_ms": total_elapsed,
+            "track_count": len(playlist.tracks),
+            "phase_count": len(workout.phases),
+        })
         return response
 
     except ValueError as e:
         logger.error(f"Validation error: {e}")
+        _ph_capture(distinct_id, "generate_error", {
+            "error_type": "ValueError",
+            "elapsed_ms": int((_time.time() - request_start) * 1000),
+        })
         raise HTTPException(status_code=400, detail=str(e))
 
     except NotImplementedError as e:
         logger.error(f"Feature not available: {e}")
+        _ph_capture(distinct_id, "generate_error", {
+            "error_type": "NotImplementedError",
+            "elapsed_ms": int((_time.time() - request_start) * 1000),
+        })
         raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
+        _ph_capture(distinct_id, "generate_error", {
+            "error_type": type(e).__name__,
+            "elapsed_ms": int((_time.time() - request_start) * 1000),
+        })
         raise HTTPException(
             status_code=500,
             detail="Failed to generate playlist. Please try again."

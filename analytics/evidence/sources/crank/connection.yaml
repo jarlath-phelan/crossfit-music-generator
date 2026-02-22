@@ -1,0 +1,4 @@
+name: crank
+type: duckdb
+options:
+  filename: ../../crank.duckdb

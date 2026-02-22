@@ -1,0 +1,36 @@
+source: feedback is duckdb.table('raw_track_events') extend {
+  where: action in ('thumbs_up', 'thumbs_down')
+
+  dimension:
+    feedback_id is event_id
+    feedback_date is played_at::date
+    feedback_type is action
+    track_name is track_name
+    artist is artist
+    track_id is track_id
+
+  measure:
+    total_feedback is count()
+    thumbs_up is count() { where: feedback_type = 'thumbs_up' }
+    thumbs_down is count() { where: feedback_type = 'thumbs_down' }
+    net_sentiment is thumbs_up - thumbs_down
+    approval_rate is thumbs_up / nullif(total_feedback, 0)
+
+  view: most_loved is {
+    group_by: track_name, artist
+    aggregate: thumbs_up, thumbs_down, net_sentiment, approval_rate
+    order_by: net_sentiment desc
+    limit: 20
+  }
+
+  view: sentiment_over_time is {
+    group_by: feedback_date
+    aggregate: thumbs_up, thumbs_down, net_sentiment
+    order_by: feedback_date
+  }
+
+  view: by_type is {
+    group_by: feedback_type
+    aggregate: total_feedback
+  }
+}

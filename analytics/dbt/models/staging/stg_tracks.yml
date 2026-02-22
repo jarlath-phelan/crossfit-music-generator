@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_tracks
+    description: Cleaned track catalog with audio features
+    columns:
+      - name: track_id
+        description: Unique track identifier
+        tests:
+          - unique
+          - not_null
+      - name: track_name
+        description: Track title
+      - name: artist
+        description: Artist name
+      - name: bpm
+        description: Beats per minute
+      - name: energy
+        description: Energy score from 0.0 to 1.0
+      - name: genre
+        description: Music genre classification
+      - name: spotify_uri
+        description: Spotify URI for playback
+      - name: album_art_url
+        description: URL to album artwork image

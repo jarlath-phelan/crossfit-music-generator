@@ -1,0 +1,37 @@
+semantic_models:
+  - name: sem_playback
+    description: Semantic model for track playback events
+    defaults:
+      agg_time_dimension: played_at
+    model: ref('fct_playback')
+
+    entities:
+      - name: playback
+        type: primary
+        expr: playback_id
+      - name: user
+        type: foreign
+        expr: user_id
+      - name: track
+        type: foreign
+        expr: track_id
+
+    dimensions:
+      - name: played_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: played_at
+      - name: action
+        type: categorical
+        expr: action
+
+    measures:
+      - name: total_plays
+        description: Total number of playback events
+        agg: count
+        expr: playback_id
+      - name: unique_listeners
+        description: Count of distinct users with playback activity
+        agg: count_distinct
+        expr: user_id

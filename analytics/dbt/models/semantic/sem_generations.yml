@@ -1,0 +1,48 @@
+semantic_models:
+  - name: sem_generations
+    description: Semantic model for playlist generation events
+    defaults:
+      agg_time_dimension: generated_at
+    model: ref('fct_generations')
+
+    entities:
+      - name: generation
+        type: primary
+        expr: generation_id
+      - name: user
+        type: foreign
+        expr: user_id
+
+    dimensions:
+      - name: generated_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: generated_at
+      - name: genre
+        type: categorical
+        expr: genre
+      - name: workout_type
+        type: categorical
+        expr: workout_type
+      - name: input_mode
+        type: categorical
+        expr: input_mode
+
+    measures:
+      - name: generation_count
+        description: Total number of playlist generations
+        agg: count
+        expr: generation_id
+      - name: unique_generators
+        description: Count of distinct users who generated playlists
+        agg: count_distinct
+        expr: user_id
+      - name: avg_track_count
+        description: Average number of tracks per generated playlist
+        agg: average
+        expr: track_count
+      - name: avg_elapsed_ms
+        description: Average pipeline generation time in milliseconds
+        agg: average
+        expr: elapsed_ms

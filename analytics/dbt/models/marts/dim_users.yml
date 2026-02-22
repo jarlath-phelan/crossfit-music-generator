@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: dim_users
+    description: >
+      User dimension enriched with aggregated generation and playback activity.
+      One row per user with lifetime metrics.
+    columns:
+      - name: user_id
+        description: Unique user identifier
+        tests:
+          - unique
+          - not_null
+      - name: first_seen_at
+        description: User's account creation timestamp
+      - name: last_seen_at
+        description: Most recent activity timestamp (generation or playback)
+      - name: total_generations
+        description: Lifetime count of playlists generated
+      - name: total_playbacks
+        description: Lifetime count of playback actions
+      - name: preferred_genre
+        description: User's preferred music genre
+      - name: signup_source
+        description: How the user discovered the app
+      - name: days_active
+        description: Number of days between first and last activity (inclusive)

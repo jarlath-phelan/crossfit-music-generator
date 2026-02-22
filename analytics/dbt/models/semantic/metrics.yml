@@ -1,0 +1,34 @@
+metrics:
+  - name: daily_generations
+    description: Number of playlist generations per day
+    type: simple
+    label: Daily Generations
+    type_params:
+      measure: generation_count
+    config:
+      meta:
+        grain: day
+
+  - name: daily_active_users
+    description: Number of distinct users who played any track per day
+    type: simple
+    label: Daily Active Users
+    type_params:
+      measure: total_plays
+    config:
+      meta:
+        grain: day
+
+  - name: avg_generation_latency
+    description: Average time to generate a playlist in milliseconds
+    type: simple
+    label: Avg Generation Latency (ms)
+    type_params:
+      measure: avg_elapsed_ms
+
+  - name: genre_generation_count
+    description: Number of generations, suitable for grouping by genre
+    type: simple
+    label: Generations by Genre
+    type_params:
+      measure: generation_count

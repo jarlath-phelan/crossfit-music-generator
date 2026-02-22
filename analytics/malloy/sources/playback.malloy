@@ -1,0 +1,41 @@
+import "users.malloy"
+
+source: playback is duckdb.table('raw_track_events') extend {
+  where: action in ('play', 'pause', 'skip', 'seek', 'complete')
+
+  join_one: users with user_id
+
+  dimension:
+    playback_id is event_id
+    play_date is played_at::date
+    track_name is track_name
+    artist is artist
+    action is action
+
+  measure:
+    total_events is count()
+    total_plays is count() { where: action = 'play' }
+    total_skips is count() { where: action = 'skip' }
+    unique_listeners is count(distinct user_id)
+    skip_rate is total_skips / nullif(total_plays, 0)
+    avg_position_ms is position_ms.avg()
+
+  view: top_tracks is {
+    group_by: track_name, artist
+    aggregate: total_plays, unique_listeners, skip_rate
+    order_by: total_plays desc
+    limit: 20
+  }
+
+  view: action_breakdown is {
+    group_by: action
+    aggregate: total_events
+    order_by: total_events desc
+  }
+
+  view: listening_by_day is {
+    group_by: play_date
+    aggregate: total_plays, unique_listeners
+    order_by: play_date
+  }
+}

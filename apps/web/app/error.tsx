@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
+import { capture } from '@/lib/posthog'
 
 export default function Error({
   error,
@@ -15,6 +16,10 @@ export default function Error({
   useEffect(() => {
     // Log the error to an error reporting service
     console.error('Application error:', error)
+    capture('$exception', {
+      error_message: error.message,
+      error_digest: error.digest,
+    })
   }, [error])
 
   return (

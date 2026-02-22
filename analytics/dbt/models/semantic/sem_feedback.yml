@@ -1,0 +1,45 @@
+semantic_models:
+  - name: sem_feedback
+    description: Semantic model for track feedback events (thumbs up/down)
+    defaults:
+      agg_time_dimension: given_at
+    model: ref('fct_feedback')
+
+    entities:
+      - name: feedback
+        type: primary
+        expr: feedback_id
+      - name: user
+        type: foreign
+        expr: user_id
+      - name: track
+        type: foreign
+        expr: track_id
+
+    dimensions:
+      - name: given_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: given_at
+      - name: feedback_type
+        type: categorical
+        expr: feedback_type
+
+    measures:
+      - name: total_feedback
+        description: Total number of feedback events
+        agg: count
+        expr: feedback_id
+      - name: thumbs_up_count
+        description: Count of thumbs up feedback
+        agg: count
+        expr: feedback_id
+        filter:
+          - "{{ Dimension('feedback__feedback_type') }} = 'thumbs_up'"
+      - name: thumbs_down_count
+        description: Count of thumbs down feedback
+        agg: count
+        expr: feedback_id
+        filter:
+          - "{{ Dimension('feedback__feedback_type') }} = 'thumbs_down'"

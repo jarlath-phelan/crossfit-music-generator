@@ -1,0 +1,7 @@
+crank:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../crank.duckdb
+      threads: 4

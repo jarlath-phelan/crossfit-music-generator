@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "posthog": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-posthog"],
+      "env": {
+        "POSTHOG_PROJECT_ID": "",
+        "POSTHOG_API_KEY": ""
+      }
+    },
+    "duckdb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@motherduckdb/mcp-server-motherduck"
+      ],
+      "env": {
+        "DUCKDB_PATH": "./analytics/crank.duckdb"
+      }
+    }
+  }
+}

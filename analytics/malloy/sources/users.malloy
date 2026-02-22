@@ -1,0 +1,38 @@
+source: users is duckdb.table('raw_users') extend {
+  dimension:
+    user_id is user_id
+    signup_date is created_at::date
+    preferred_genre is preferred_genre
+    signup_source is signup_source
+    has_spotify_premium is has_spotify_premium
+    country is country
+
+  measure:
+    total_users is count()
+    premium_users is count() { where: has_spotify_premium = true }
+    premium_rate is premium_users / nullif(total_users, 0)
+
+  view: by_source is {
+    group_by: signup_source
+    aggregate: total_users, premium_rate
+    order_by: total_users desc
+  }
+
+  view: by_genre is {
+    group_by: preferred_genre
+    aggregate: total_users
+    order_by: total_users desc
+  }
+
+  view: by_country is {
+    group_by: country
+    aggregate: total_users, premium_rate
+    order_by: total_users desc
+  }
+
+  view: signups_over_time is {
+    group_by: signup_date
+    aggregate: total_users
+    order_by: signup_date
+  }
+}

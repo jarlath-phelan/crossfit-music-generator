@@ -1,0 +1,12 @@
+{
+  "connections": [
+    {
+      "name": "duckdb",
+      "backend": "duckdb",
+      "databasePath": "../crank.duckdb"
+    }
+  ],
+  "modelsPath": "sources",
+  "port": 4000,
+  "mcpPort": 4040
+}

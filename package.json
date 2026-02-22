@@ -12,7 +12,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "clean": "turbo clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "analytics": "cd analytics/evidence && npm run dev -- --port 4000"
   },
   "devDependencies": {
     "prettier": "^3.1.1",

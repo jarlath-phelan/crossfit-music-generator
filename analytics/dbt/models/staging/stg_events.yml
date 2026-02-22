@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: Cleaned and parsed product analytics events with JSON properties extracted into typed columns
+    columns:
+      - name: event_id
+        description: Unique event identifier
+        tests:
+          - unique
+          - not_null
+      - name: event_name
+        description: Event type (e.g. $pageview, generate_submitted, playback_play)
+      - name: user_id
+        description: Anonymous or authenticated user identifier
+      - name: event_at
+        description: Event timestamp (UTC)
+      - name: genre
+        description: Genre extracted from event properties (when applicable)
+      - name: track_id
+        description: Track ID extracted from event properties (when applicable)
+      - name: workout_name
+        description: Named WOD from event properties (e.g. Fran, Murph)
+      - name: workout_type
+        description: Workout type from event properties (e.g. AMRAP, For Time)
+      - name: input_mode
+        description: Input mode from event properties (text or photo)
+      - name: playlist_id
+        description: Playlist ID from event properties
+      - name: current_url
+        description: Page URL when event fired
+      - name: pathname
+        description: URL pathname when event fired
+      - name: onboarding_step
+        description: Onboarding step number (for onboarding_step_completed events)
+      - name: elapsed_ms
+        description: Generation elapsed time in ms (for generate_completed events)
+      - name: track_count
+        description: Number of tracks generated (for generate_completed events)
+      - name: error_type
+        description: Error classification (for generate_error events)
+      - name: error_message
+        description: Error detail message (for generate_error events)
+      - name: raw_properties
+        description: Original JSON properties for ad-hoc analysis

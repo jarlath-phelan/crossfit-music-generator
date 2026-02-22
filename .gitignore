@@ -66,3 +66,7 @@ logo-playground.html
 # Git worktrees
 .worktrees/
 
+# DuckDB
+*.duckdb
+*.duckdb.wal
+

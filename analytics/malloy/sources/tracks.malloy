@@ -1,0 +1,40 @@
+source: tracks is duckdb.table('raw_tracks') extend {
+  dimension:
+    track_id is track_id
+    track_name is track_name
+    artist is artist
+    bpm is bpm
+    energy is energy
+    genre is genre
+    bpm_range is pick
+      'Cooldown (< 100)' when bpm < 100
+      'Warm Up (100-120)' when bpm < 120
+      'Low (120-130)' when bpm < 130
+      'Moderate (130-145)' when bpm < 145
+      'High (145-160)' when bpm < 160
+      'Very High (160+)' when bpm >= 160
+
+  measure:
+    total_tracks is count()
+    avg_bpm is bpm.avg()
+    avg_energy is energy.avg()
+
+  view: by_genre is {
+    group_by: genre
+    aggregate: total_tracks, avg_bpm, avg_energy
+    order_by: total_tracks desc
+  }
+
+  view: bpm_distribution is {
+    group_by: bpm_range
+    aggregate: total_tracks
+    order_by: bpm_range
+  }
+
+  view: high_energy is {
+    where: energy > 0.8
+    group_by: track_name, artist, bpm, energy
+    order_by: energy desc
+    limit: 20
+  }
+}

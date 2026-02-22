@@ -1,0 +1,38 @@
+semantic_models:
+  - name: sem_users
+    description: Semantic model for the user dimension
+    defaults:
+      agg_time_dimension: first_seen_at
+    model: ref('dim_users')
+
+    entities:
+      - name: user
+        type: primary
+        expr: user_id
+
+    dimensions:
+      - name: first_seen_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: first_seen_at
+      - name: preferred_genre
+        type: categorical
+        expr: preferred_genre
+      - name: signup_source
+        type: categorical
+        expr: signup_source
+
+    measures:
+      - name: total_users
+        description: Total number of users
+        agg: count
+        expr: user_id
+      - name: avg_days_active
+        description: Average number of days users have been active
+        agg: average
+        expr: days_active
+      - name: avg_generations_per_user
+        description: Average number of generations per user
+        agg: average
+        expr: total_generations

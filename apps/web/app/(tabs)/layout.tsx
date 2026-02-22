@@ -3,6 +3,7 @@
 import { TabBar } from '@/components/tab-bar'
 import { MiniPlayer } from '@/components/mini-player'
 import { SpotifyMiniPlayerProvider, useSpotifyMiniPlayer } from '@/components/spotify-context'
+import { PHProvider } from '@/components/posthog-provider'
 
 function TabLayoutInner({ children }: { children: React.ReactNode }) {
   const { state: miniPlayerState } = useSpotifyMiniPlayer()
@@ -34,8 +35,10 @@ export default function TabLayout({
   children: React.ReactNode
 }) {
   return (
-    <SpotifyMiniPlayerProvider>
-      <TabLayoutInner>{children}</TabLayoutInner>
-    </SpotifyMiniPlayerProvider>
+    <PHProvider>
+      <SpotifyMiniPlayerProvider>
+        <TabLayoutInner>{children}</TabLayoutInner>
+      </SpotifyMiniPlayerProvider>
+    </PHProvider>
   )
 }

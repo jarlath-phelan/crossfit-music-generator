@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # API Security
     api_shared_secret: Optional[str] = None  # HMAC shared secret with frontend
 
+    # PostHog
+    posthog_api_key: Optional[str] = None
+
     # Supabase
     supabase_url: Optional[str] = None
     supabase_service_key: Optional[str] = None

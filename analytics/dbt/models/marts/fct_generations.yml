@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: fct_generations
+    description: >
+      Fact table for playlist generations. One row per generation event, capturing
+      workout metadata, music output details, and pipeline performance.
+    columns:
+      - name: generation_id
+        description: Unique generation identifier (same as playlist_id)
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: User who triggered the generation
+        tests:
+          - not_null
+      - name: genre
+        description: Music genre used for curation
+      - name: workout_type
+        description: Workout format (AMRAP, For Time, EMOM, etc.)
+      - name: workout_name
+        description: Named WOD if applicable (Fran, Murph, Grace, etc.)
+      - name: input_mode
+        description: How the workout was input (text or photo)
+      - name: phase_count
+        description: Number of distinct workout phases parsed
+      - name: track_count
+        description: Number of tracks in the generated playlist
+      - name: duration_ms
+        description: Total playlist duration in milliseconds
+      - name: peak_bpm
+        description: Highest BPM track in the playlist
+      - name: elapsed_ms
+        description: Pipeline generation time in milliseconds
+      - name: has_spotify
+        description: Whether generated tracks have Spotify URIs
+      - name: generated_at
+        description: Generation timestamp (UTC)
+        tests:
+          - not_null

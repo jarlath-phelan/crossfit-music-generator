@@ -1,0 +1,109 @@
+version: 2
+
+sources:
+  - name: crank
+    description: Raw data tables for the Crank (CrossFit Playlist Generator) application
+    tables:
+      - name: raw_events
+        description: Product analytics events captured from the frontend and backend
+        columns:
+          - name: event_id
+            description: Unique identifier for each event
+          - name: event
+            description: Event type name (e.g. $pageview, generate_submitted)
+          - name: distinct_id
+            description: Anonymous or authenticated user identifier
+          - name: timestamp
+            description: When the event occurred (UTC)
+          - name: properties
+            description: JSON object containing event-specific properties
+
+      - name: raw_users
+        description: User dimension table with profile attributes
+        columns:
+          - name: user_id
+            description: Unique user identifier
+          - name: created_at
+            description: Account creation timestamp
+          - name: signup_source
+            description: How the user discovered the app
+          - name: preferred_genre
+            description: User's preferred music genre
+          - name: has_spotify_premium
+            description: Whether user has Spotify Premium
+          - name: country
+            description: User's country code
+
+      - name: raw_tracks
+        description: Music track catalog with audio features
+        columns:
+          - name: track_id
+            description: Unique track identifier
+          - name: track_name
+            description: Track title
+          - name: artist
+            description: Artist name
+          - name: bpm
+            description: Beats per minute
+          - name: energy
+            description: Energy score (0.0 to 1.0)
+          - name: genre
+            description: Music genre classification
+          - name: spotify_uri
+            description: Spotify URI for playback
+          - name: album_art_url
+            description: URL to album artwork
+
+      - name: raw_playlists
+        description: Generated playlist records with metadata
+        columns:
+          - name: playlist_id
+            description: Unique playlist identifier
+          - name: user_id
+            description: User who generated the playlist
+          - name: genre
+            description: Genre used for generation
+          - name: workout_type
+            description: Type of workout (e.g. AMRAP, For Time)
+          - name: workout_name
+            description: Named WOD if applicable (e.g. Fran, Murph)
+          - name: input_mode
+            description: How workout was input (text or photo)
+          - name: phase_count
+            description: Number of workout phases
+          - name: track_count
+            description: Number of tracks in playlist
+          - name: duration_ms
+            description: Total playlist duration in milliseconds
+          - name: peak_bpm
+            description: Highest BPM track in the playlist
+          - name: elapsed_ms
+            description: Time taken to generate the playlist
+          - name: has_spotify
+            description: Whether tracks have Spotify URIs
+          - name: generated_at
+            description: When the playlist was generated
+
+      - name: raw_track_events
+        description: Track-level interaction events (plays, skips, feedback)
+        columns:
+          - name: event_id
+            description: Unique event identifier
+          - name: user_id
+            description: User who performed the action
+          - name: playlist_id
+            description: Playlist context for the action
+          - name: track_id
+            description: Track that was acted upon
+          - name: track_name
+            description: Track title
+          - name: artist
+            description: Artist name
+          - name: action
+            description: Action type (play, pause, skip, seek, complete, thumbs_up, thumbs_down)
+          - name: position_ms
+            description: Playback position in milliseconds
+          - name: duration_ms
+            description: Track duration in milliseconds
+          - name: played_at
+            description: When the action occurred

@@ -6,6 +6,7 @@ import { SignInButton } from "./sign-in-button";
 import { Button } from "@/components/ui/button";
 import { User, LogOut, Settings, ListMusic, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { resetUser } from "@/lib/posthog";
 
 export function UserMenu() {
   const { data: session, isPending } = authClient.useSession();
@@ -93,6 +94,7 @@ export function UserMenu() {
               role="menuitem"
               onClick={() => {
                 setOpen(false);
+                resetUser();
                 authClient.signOut();
               }}
               className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-[var(--secondary)] text-[var(--destructive)]"

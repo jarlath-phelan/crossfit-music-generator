@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: fct_playback
+    description: >
+      Fact table for music playback events. Captures play, pause, skip, seek,
+      and complete actions on individual tracks.
+    columns:
+      - name: playback_id
+        description: Unique playback event identifier
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: User who performed the playback action
+      - name: track_id
+        description: Track that was acted upon
+      - name: track_name
+        description: Track title
+      - name: artist
+        description: Artist name
+      - name: action
+        description: Playback action type (play, pause, skip, seek, complete)
+        tests:
+          - accepted_values:
+              values: ['play', 'pause', 'skip', 'seek', 'complete']
+      - name: position_ms
+        description: Playback position in milliseconds when action occurred
+      - name: duration_ms
+        description: Total track duration in milliseconds
+      - name: played_at
+        description: Timestamp of the playback action

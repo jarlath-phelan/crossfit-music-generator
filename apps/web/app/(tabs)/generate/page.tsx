@@ -18,6 +18,7 @@ import { UserMenu } from '@/components/auth/user-menu'
 import Link from 'next/link'
 import { Save, AudioLines, Share, Settings, Clock, Music, Gauge } from 'lucide-react'
 import { formatTotalDuration } from '@/lib/utils'
+import { capture } from '@/lib/posthog'
 
 type GenerateState = 'empty' | 'loading' | 'results' | 'error'
 
@@ -182,6 +183,16 @@ export default function GeneratePage() {
     setResult(null)
     setErrorMessage(null)
     setWorkoutText(text)
+
+    const inputMode = imageBase64 ? 'photo' : text.length < 20 ? 'named_wod' : 'text'
+    capture('generate_submitted', {
+      genre: selectedGenre,
+      input_mode: inputMode,
+      text_length: text.length,
+      has_image: !!imageBase64,
+    })
+
+    const startTime = Date.now()
     try {
       const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
       setResult(data)
@@ -189,10 +200,20 @@ export default function GeneratePage() {
       localStorage.setItem('crank_last_workout_text', text)
       localStorage.setItem('crank_last_genre', selectedGenre)
       toast.success('Your playlist is locked in.')
+      capture('generate_completed', {
+        elapsed_ms: Date.now() - startTime,
+        track_count: data.playlist.tracks.length,
+        phase_count: data.workout.phases.length,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
       setErrorMessage(message)
       setState('error')
+      capture('generate_error', {
+        error_type: error instanceof Error ? error.constructor.name : 'unknown',
+        error_message: message,
+        elapsed_ms: Date.now() - startTime,
+      })
     }
   }
 
@@ -346,7 +367,10 @@ export default function GeneratePage() {
                       type="button"
                       role="radio"
                       aria-checked={selectedGenre === genre}
-                      onClick={() => setSelectedGenre(genre)}
+                      onClick={() => {
+                        setSelectedGenre(genre)
+                        capture('genre_selected', { genre })
+                      }}
                       className={`text-sm px-4 py-2 rounded-full border transition-colors min-h-[44px] ${
                         selectedGenre === genre
                           ? 'bg-[var(--accent)] text-white border-[var(--accent)] glow-accent'

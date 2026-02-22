@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dim_tracks
+    description: >
+      Track dimension enriched with feedback sentiment and play counts.
+      One row per track in the catalog.
+    columns:
+      - name: track_id
+        description: Unique track identifier
+        tests:
+          - unique
+          - not_null
+      - name: track_name
+        description: Track title
+      - name: artist
+        description: Artist name
+      - name: bpm
+        description: Beats per minute
+      - name: energy
+        description: Energy score from 0.0 to 1.0
+      - name: genre
+        description: Music genre classification
+      - name: thumbs_up_count
+        description: Total thumbs up feedback received
+      - name: thumbs_down_count
+        description: Total thumbs down feedback received
+      - name: net_sentiment
+        description: Net sentiment score (thumbs_up - thumbs_down)
+      - name: total_plays
+        description: Total number of play actions on this track
