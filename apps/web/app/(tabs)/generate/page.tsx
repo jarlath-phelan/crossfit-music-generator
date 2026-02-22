@@ -255,6 +255,7 @@ export default function GeneratePage() {
   }
 
   const handleEdit = () => {
+    setInitialText(workoutText)
     setState('empty')
   }
 
@@ -329,26 +330,27 @@ export default function GeneratePage() {
               isLoading={state === 'loading'}
               initialText={initialText}
               onTextChange={(text) => setWorkoutText(text)}
+              slotBeforeSubmit={
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Music genre">
+                  {GENRE_OPTIONS.map((genre) => (
+                    <button
+                      key={genre}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedGenre === genre}
+                      onClick={() => setSelectedGenre(genre)}
+                      className={`text-sm px-4 py-2 rounded-full border transition-colors min-h-[44px] ${
+                        selectedGenre === genre
+                          ? 'bg-[var(--accent)] text-white border-[var(--accent)] glow-accent'
+                          : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30'
+                      }`}
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                </div>
+              }
             />
-            {/* Genre chips — below input, secondary to workout entry */}
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Music genre">
-              {GENRE_OPTIONS.map((genre) => (
-                <button
-                  key={genre}
-                  type="button"
-                  role="radio"
-                  aria-checked={selectedGenre === genre}
-                  onClick={() => setSelectedGenre(genre)}
-                  className={`text-sm px-4 py-2 rounded-full border transition-colors min-h-[44px] ${
-                    selectedGenre === genre
-                      ? 'bg-[var(--accent)] text-white border-[var(--accent)] glow-accent'
-                      : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30'
-                  }`}
-                >
-                  {genre}
-                </button>
-              ))}
-            </div>
           </>
         )}
 

@@ -24,6 +24,8 @@ interface WorkoutFormProps {
   initialText?: string
   /** Called when the internal text value changes (for parent state sync) */
   onTextChange?: (text: string) => void
+  /** Content rendered between WOD buttons and the Generate button (e.g. genre chips) */
+  slotBeforeSubmit?: React.ReactNode
 }
 
 const NAMED_WODS: { name: string; text: string }[] = [
@@ -49,6 +51,7 @@ export function WorkoutForm({
   onNewWorkout,
   initialText,
   onTextChange,
+  slotBeforeSubmit,
 }: WorkoutFormProps) {
   const [workoutText, setWorkoutTextInternal] = useState(initialText ?? '')
   const [inputMode, setInputMode] = useState<InputMode>('text')
@@ -188,6 +191,9 @@ export function WorkoutForm({
           </div>
         </div>
       )}
+
+      {/* Slot for extra content (e.g. genre chips) */}
+      {slotBeforeSubmit}
 
       {/* Generate button */}
       <Button
