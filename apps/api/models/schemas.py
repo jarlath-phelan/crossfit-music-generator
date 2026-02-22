@@ -118,9 +118,9 @@ class GeneratePlaylistRequest(BaseModel):
         max_length=14_000_000,  # ~10MB base64
         description="Base64-encoded image of workout (e.g. whiteboard photo)"
     )
-    image_media_type: Optional[str] = Field(
+    image_media_type: Optional[Literal["image/jpeg", "image/png", "image/gif", "image/webp"]] = Field(
         None,
-        description="MIME type of the image (e.g. 'image/jpeg', 'image/png')"
+        description="MIME type of the image"
     )
 
     class Config:

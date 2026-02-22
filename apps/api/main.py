@@ -4,6 +4,7 @@ FastAPI application for CrossFit Playlist Generator
 import hashlib
 import hmac
 import logging
+import math
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
@@ -11,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from config import settings
 from models.schemas import GeneratePlaylistRequest, GeneratePlaylistResponse, Track
@@ -26,11 +29,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Rate limiter key: use X-Forwarded-For behind reverse proxy (Fly.io)
+# Rate limiter key: use Fly-Client-IP (set by Fly.io proxy, not spoofable)
 def get_real_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    fly_ip = request.headers.get("fly-client-ip")
+    if fly_ip:
+        return fly_ip.strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -77,12 +80,29 @@ async def lifespan(app: FastAPI):
 
 
 # Create FastAPI application
+import os as _os
+_is_production = _os.getenv("FLY_APP_NAME") is not None
+
 app = FastAPI(
-    title="CrossFit Playlist Generator API",
+    title="Crank API",
     description="Generate workout playlists from CrossFit workout text or photos",
     version="3.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None,
 )
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add rate limiter state and exception handler
 app.state.limiter = limiter
@@ -108,19 +128,9 @@ app.add_middleware(
 async def root():
     """Root endpoint with API information"""
     return {
-        "name": "CrossFit Playlist Generator API",
+        "name": "Crank API",
         "version": "3.0.0",
         "status": "operational",
-        "docs": "/docs",
-        "endpoints": {
-            "generate": "POST /api/v1/generate"
-        },
-        "mock_mode": {
-            "anthropic": settings.use_mock_anthropic,
-            "spotify": settings.use_mock_spotify
-        },
-        "music_source": settings.music_source,
-        "spotify_enabled": spotify_client is not None,
     }
 
 
@@ -160,7 +170,6 @@ async def health_check():
         return {
             "status": "unhealthy",
             "agents": agent_status,
-            "error": str(e)
         }
 
 
@@ -222,32 +231,39 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     # Extract user preference headers (set by Next.js server actions)
     user_id = request.headers.get("X-User-ID")
 
-    # Verify X-User-ID signature if shared secret is configured
-    if user_id and settings.api_shared_secret:
-        signature = request.headers.get("X-User-Signature", "")
-        expected = hmac.new(
-            settings.api_shared_secret.encode(),
-            user_id.encode(),
-            hashlib.sha256,
-        ).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            logger.warning(f"Invalid HMAC signature for user {user_id}")
-            user_id = None  # Reject unsigned user ID
+    # Verify X-User-ID signature — reject if secret not configured
+    if user_id:
+        if not settings.api_shared_secret:
+            logger.warning("X-User-ID ignored: API_SHARED_SECRET not configured")
+            user_id = None
+        else:
+            signature = request.headers.get("X-User-Signature", "")
+            expected = hmac.new(
+                settings.api_shared_secret.encode(),
+                user_id.encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            if not hmac.compare_digest(signature, expected):
+                logger.warning("Invalid HMAC signature for request")
+                user_id = None
 
     user_genre = request.headers.get("X-User-Genre")
     user_exclude_artists = request.headers.get("X-User-Exclude-Artists")
     user_min_energy_str = request.headers.get("X-User-Min-Energy")
-    user_min_energy = float(user_min_energy_str) if user_min_energy_str else None
+    user_min_energy = None
+    if user_min_energy_str:
+        try:
+            val = float(user_min_energy_str)
+            if 0.0 <= val <= 1.0 and not math.isnan(val) and not math.isinf(val):
+                user_min_energy = val
+        except (ValueError, TypeError):
+            pass
     user_boost_artists = request.headers.get("X-User-Boost-Artists")
     user_hidden_tracks = request.headers.get("X-User-Hidden-Tracks")
-    music_source_override = request.headers.get("X-Music-Source")
-
     if user_id:
-        logger.info(f"Authenticated request from user {user_id}")
+        logger.info("Authenticated request received")
     if user_genre:
         logger.info(f"User genre preference: {user_genre}")
-    if music_source_override:
-        logger.info(f"Music source override requested: {music_source_override}")
 
     if has_text:
         logger.info(f"Received text-based request: {body.workout_text[:50]}...")
@@ -312,7 +328,7 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
         logger.error(f"Unexpected error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate playlist: {str(e)}"
+            detail="Failed to generate playlist. Please try again."
         )
 
 

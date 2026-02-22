@@ -30,7 +30,6 @@ export function getAuth() {
             "streaming",
             "user-modify-playback-state",
             "user-read-playback-state",
-            "playlist-modify-public",
             "playlist-modify-private",
           ],
         },

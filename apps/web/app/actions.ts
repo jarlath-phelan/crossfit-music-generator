@@ -219,6 +219,8 @@ export async function submitTrackFeedback(
   trackId: string,
   rating: number
 ): Promise<void> {
+  if (rating !== 1 && rating !== -1) throw new Error('Rating must be 1 or -1')
+
   const session = await requireSession()
 
   // Remove any existing feedback for this user+track

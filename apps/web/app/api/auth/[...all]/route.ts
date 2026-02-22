@@ -22,7 +22,10 @@ async function safeHandler(req: Request) {
   } catch (error) {
     if (isDbConnectionError(error)) {
       console.error("[auth] Database connection error:", error);
-      return Response.json(null, { status: 200 });
+      return Response.json(
+        { error: "Service temporarily unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth] GET error:", error);
     return Response.json(
@@ -38,7 +41,10 @@ async function safePostHandler(req: Request) {
   } catch (error) {
     if (isDbConnectionError(error)) {
       console.error("[auth] Database connection error:", error);
-      return Response.json(null, { status: 200 });
+      return Response.json(
+        { error: "Service temporarily unavailable" },
+        { status: 503 }
+      );
     }
     console.error("[auth] POST error:", error);
     return Response.json(

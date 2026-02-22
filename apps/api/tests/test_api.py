@@ -31,16 +31,11 @@ class TestRootEndpoint:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "CrossFit Playlist Generator API"
+        assert data["name"] == "Crank API"
         assert "version" in data
-        assert "mock_mode" in data
-        assert "music_source" in data
-
-    def test_root_shows_mock_mode(self, client):
-        response = client.get("/")
-        data = response.json()
-        assert data["mock_mode"]["anthropic"] is True
-        assert data["mock_mode"]["spotify"] is True
+        # Operational config should NOT be exposed
+        assert "mock_mode" not in data
+        assert "music_source" not in data
 
 
 class TestHealthEndpoint:
