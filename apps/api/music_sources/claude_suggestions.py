@@ -46,7 +46,7 @@ RULES:
 - BPM must be within each phase's specified range.
 - Energy level MUST be at least the minimum shown for each phase.
 - You MUST suggest the exact number of songs requested for each phase. Do not suggest fewer.
-{exclude_line}{boost_line}
+{exclude_line}{boost_line}{taste_line}
 PHASES:
 {phases_text}
 
@@ -142,6 +142,7 @@ class ClaudeMusicSource(MusicSource):
         genre: str = "rock",
         exclude_artists: Optional[set[str]] = None,
         boost_artists: Optional[set[str]] = None,
+        taste_description: Optional[str] = None,
     ) -> dict[str, list[TrackCandidate]]:
         """
         Single Claude API call to get track suggestions for ALL workout phases.
@@ -174,11 +175,16 @@ class ClaudeMusicSource(MusicSource):
         if boost_artists:
             boost_line = f"- PREFER songs by these artists when possible: {', '.join(sorted(boost_artists))}\n"
 
+        taste_line = ""
+        if taste_description:
+            taste_line = f"- The user's musical taste: {taste_description}\n"
+
         prompt = BATCH_SUGGESTION_PROMPT.format(
             num_phases=len(phases_info),
             genre=genre,
             exclude_line=exclude_line,
             boost_line=boost_line,
+            taste_line=taste_line,
             phases_text="\n".join(phases_lines),
         )
 

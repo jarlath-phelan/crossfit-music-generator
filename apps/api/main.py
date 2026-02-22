@@ -276,6 +276,7 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     if user_id:
         logger.info("Authenticated request received")
     music_strategy = request.headers.get("X-Music-Strategy", settings.music_strategy)
+    user_taste_description = request.headers.get("X-User-Taste-Description")
     logger.info(f"Music strategy: {music_strategy}")
 
     if user_genre:
