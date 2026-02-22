@@ -20,10 +20,10 @@ import { Save, AudioLines, Share, Settings } from 'lucide-react'
 
 type GenerateState = 'empty' | 'loading' | 'results'
 
-const LOADING_MESSAGES = [
-  'Parsing workout...',
-  'Finding tracks...',
-  'Composing playlist...',
+const LOADING_STAGES = [
+  { label: 'Breaking down your WOD...', progress: 20 },
+  { label: 'Matching tracks to your tempo...', progress: 55 },
+  { label: 'Dialing in the perfect playlist...', progress: 85 },
 ]
 
 const GENRE_OPTIONS = [
@@ -38,7 +38,7 @@ export default function GeneratePage() {
   const [workoutText, setWorkoutText] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('Rock')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
-  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
+  const [loadingStage, setLoadingStage] = useState(0)
   const [initialText, setInitialText] = useState<string | undefined>(undefined)
   const { data: session } = authClient.useSession()
 
@@ -69,16 +69,17 @@ export default function GeneratePage() {
     }
   }, [result])
 
-  // Cycle through loading messages
+  // Progress through loading stages on timers
   useEffect(() => {
-    if (state !== 'loading') return
-    let index = 0
-    setLoadingMessage(LOADING_MESSAGES[0])
-    const interval = setInterval(() => {
-      index = (index + 1) % LOADING_MESSAGES.length
-      setLoadingMessage(LOADING_MESSAGES[index])
-    }, 2000)
-    return () => clearInterval(interval)
+    if (state !== 'loading') {
+      setLoadingStage(0)
+      return
+    }
+    const timers = [
+      setTimeout(() => setLoadingStage(1), 2500),
+      setTimeout(() => setLoadingStage(2), 5500),
+    ]
+    return () => timers.forEach(clearTimeout)
   }, [state])
 
   // Fetch Spotify access token when authenticated
@@ -275,11 +276,22 @@ export default function GeneratePage() {
         {/* Loading state */}
         {state === 'loading' && (
           <div className="space-y-4" aria-live="polite">
-            <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-              <div className="h-1 flex-1 rounded-full bg-[var(--secondary)] overflow-hidden">
-                <div className="h-full bg-[var(--accent)] rounded-full animate-pulse" style={{ width: '60%' }} />
+            {/* 3-stage progress */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${LOADING_STAGES[loadingStage].progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-[var(--muted)] font-mono w-8 text-right">
+                  {LOADING_STAGES[loadingStage].progress}%
+                </span>
               </div>
-              <span>{loadingMessage}</span>
+              <p className="text-sm text-[var(--muted)]">
+                {LOADING_STAGES[loadingStage].label}
+              </p>
             </div>
             <GenerateSkeleton />
           </div>
