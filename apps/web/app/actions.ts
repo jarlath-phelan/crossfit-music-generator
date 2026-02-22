@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import type { GeneratePlaylistResponse } from '@crossfit-playlist/shared'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { coachProfiles, savedPlaylists, trackFeedback } from '@/lib/schema'
+import { coachProfiles, savedPlaylists, trackFeedback, appSettings, userTasteProfile } from '@/lib/schema'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const API_SHARED_SECRET = process.env.API_SHARED_SECRET
@@ -199,6 +199,31 @@ export async function generatePlaylist(
     }
     if (hiddenTracks.length > 0) {
       fetchHeaders['X-User-Hidden-Tracks'] = hiddenTracks.join(',')
+    }
+
+    // Merge taste profile data into boost/exclude lists
+    const taste = await getTasteProfile()
+    if (taste) {
+      // Add liked artists from taste profile
+      for (const artist of Object.keys(taste.likedArtists)) {
+        if (!boostedArtists.includes(artist)) boostedArtists.push(artist)
+      }
+      // Add expanded (similar) artists
+      for (const artist of taste.expandedArtists) {
+        if (!boostedArtists.includes(artist)) boostedArtists.push(artist)
+      }
+      // Add onboarding picks
+      for (const artist of taste.onboardingArtists) {
+        if (!boostedArtists.includes(artist)) boostedArtists.push(artist)
+      }
+      // Update boost header with merged list
+      if (boostedArtists.length > 0) {
+        fetchHeaders['X-User-Boost-Artists'] = boostedArtists.join(',')
+      }
+      // Pass taste description as header
+      if (taste.tasteDescription) {
+        fetchHeaders['X-User-Taste-Description'] = taste.tasteDescription
+      }
     }
   }
 
@@ -466,4 +491,90 @@ export async function deletePlaylist(id: string): Promise<void> {
   }
 
   await db.delete(savedPlaylists).where(eq(savedPlaylists.id, id))
+}
+
+// ============================================================================
+// App settings (feature flags)
+// ============================================================================
+
+export type AppSettingsMap = Record<string, string>
+
+export async function getAppSettings(): Promise<AppSettingsMap> {
+  const rows = await db.query.appSettings.findMany()
+  const map: AppSettingsMap = {}
+  for (const row of rows) {
+    map[row.key] = row.value
+  }
+  return map
+}
+
+export async function updateAppSetting(key: string, value: string): Promise<void> {
+  await requireSession()
+  const now = new Date()
+  await db
+    .insert(appSettings)
+    .values({ key, value, updatedAt: now })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value, updatedAt: now },
+    })
+}
+
+// ============================================================================
+// User taste profile
+// ============================================================================
+
+export interface TasteProfileData {
+  likedArtists: Record<string, number>
+  dislikedArtists: Record<string, number>
+  expandedArtists: string[]
+  tasteDescription: string | null
+  onboardingArtists: string[]
+}
+
+export async function getTasteProfile(): Promise<TasteProfileData | null> {
+  const session = await getSession()
+  if (!session) return null
+
+  const profile = await db.query.userTasteProfile.findFirst({
+    where: eq(userTasteProfile.userId, session.user.id),
+  })
+
+  if (!profile) return null
+
+  return {
+    likedArtists: (profile.likedArtists as Record<string, number>) ?? {},
+    dislikedArtists: (profile.dislikedArtists as Record<string, number>) ?? {},
+    expandedArtists: (profile.expandedArtists as string[]) ?? [],
+    tasteDescription: profile.tasteDescription,
+    onboardingArtists: (profile.onboardingArtists as string[]) ?? [],
+  }
+}
+
+export async function saveTasteProfile(data: Partial<TasteProfileData>): Promise<void> {
+  const session = await requireSession()
+  const now = new Date()
+
+  await db
+    .insert(userTasteProfile)
+    .values({
+      userId: session.user.id,
+      likedArtists: data.likedArtists ?? {},
+      dislikedArtists: data.dislikedArtists ?? {},
+      expandedArtists: data.expandedArtists ?? [],
+      tasteDescription: data.tasteDescription ?? null,
+      onboardingArtists: data.onboardingArtists ?? [],
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: userTasteProfile.userId,
+      set: {
+        ...(data.likedArtists !== undefined && { likedArtists: data.likedArtists }),
+        ...(data.dislikedArtists !== undefined && { dislikedArtists: data.dislikedArtists }),
+        ...(data.expandedArtists !== undefined && { expandedArtists: data.expandedArtists }),
+        ...(data.tasteDescription !== undefined && { tasteDescription: data.tasteDescription }),
+        ...(data.onboardingArtists !== undefined && { onboardingArtists: data.onboardingArtists }),
+        updatedAt: now,
+      },
+    })
 }
