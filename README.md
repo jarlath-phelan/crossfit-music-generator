@@ -1,388 +1,265 @@
-# CrossFit Playlist Generator
+# Crank — AI-Matched Music for CrossFit Workouts
 
-[![Live Demo](https://img.shields.io/badge/demo-live-success?style=for-the-badge&logo=vercel)](https://crossfit-music-generator-web.vercel.app/)
+[![Live App](https://img.shields.io/badge/app-live-success?style=for-the-badge&logo=vercel)](https://crossfit-music-generator.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 
-Generate custom workout playlists from CrossFit workout descriptions using AI-driven music curation.
+Drop your WOD. We'll bring the heat.
 
-## Overview
+Crank parses any CrossFit workout — text or whiteboard photo — into intensity phases, then builds a BPM-matched Spotify playlist you can stream in-browser.
 
-This project generates Spotify-style playlists tailored to CrossFit workouts by:
-1. **Parsing** workout text to understand intensity phases
-2. **Curating** music tracks matching BPM and energy requirements
-3. **Composing** optimized playlists with smooth transitions
+**Live at:** [crossfit-music-generator.vercel.app](https://crossfit-music-generator.vercel.app)
 
-**Current Status**: MVP (Phase 0) - Works out-of-the-box with mock APIs, no API keys required!
+## How It Works
 
-## 🚀 Live Demo
+```
+Workout text or photo → Claude parses phases → Music source finds tracks by BPM → Scorer ranks → Composer builds playlist → Stream via Spotify
+```
 
-**Try it now:** [https://crossfit-music-generator-web.vercel.app](https://crossfit-music-generator-web.vercel.app/)
-
-Enter any CrossFit workout and instantly get a personalized playlist!
-
-## Demo
-
-### 1. Enter Your Workout
-![Workout Input](docs/images/1_input.png)
-*Simple, intuitive interface - just paste your workout description*
-
-### 2. Parse Workout Structure
-![Workout Settings](docs/images/2_settings.png)
-*Automatically identifies workout format, intensity phases, and BPM requirements*
-
-### 3. Get Your Playlist
-![Generated Playlist](docs/images/3_output.png)
-*Curated playlist with tracks matched to each phase - ready to energize your WOD!*
+1. **Enter a workout** — paste text, tap a named WOD (Fran, Murph, Grace, DT, Cindy), or snap a whiteboard photo
+2. **Pick a genre** — Rock, Hip-Hop, EDM, Metal, Pop, Punk, Country, or Indie
+3. **Get your playlist** — tracks matched to each workout phase by BPM and energy
+4. **Stream it** — play directly in the browser via Spotify, or export to your Spotify library
 
 ## Features
 
-### ✅ Phase 0: MVP (Current)
-
-- Parse common CrossFit formats (AMRAP, RFT, EMOM, Tabata, Chipper)
-- Generate playlists with 3-7 tracks matching workout intensity
-- Display parsed workout structure with phases
-- View track details (name, artist, BPM, energy)
-- Works without API keys using intelligent mock implementations
-
-### 🚧 Phase 1: Coach Profiles (Planned)
-
-- Coach authentication and profiles
-- Custom music preferences (genres, exclude artists)
-- Save and reuse playlists
-- Manual track override and "boost" feature
-- Learning from coach feedback
-
-### 🔮 Phase 2: Multi-User (Planned)
-
-- Class scheduling with attendee invitations
-- Aggregated music preferences
-- Post-class feedback collection
-- Spotify playlist creation and integration
-- Class history and analytics
-
-### 🌟 Phase 3: Real-Time Biometric (Planned)
-
-- Wearable device integration (Apple Watch, Whoop, Fitbit)
-- Real-time playlist adjustment based on heart rate
-- Gym display screen with live metrics
-- AI-driven BPM learning per gym
-- Performance analytics and leaderboards
+- **AI workout parsing** — Claude understands AMRAP, RFT, EMOM, Tabata, Chipper, and custom formats
+- **Photo input** — take a picture of a whiteboard and Claude Vision parses it
+- **BPM-matched music** — tracks scored on BPM match (50pts), energy (30pts), artist diversity (20pts), feedback boost (15pts)
+- **Spotify playback** — stream in-browser with play/pause, seek, skip, and volume controls (Premium required)
+- **Spotify export** — save generated playlists to your Spotify account
+- **8 genre options** — tappable genre chips on the generate page
+- **Named WODs** — one-tap buttons for popular CrossFit workouts
+- **Track feedback** — thumbs up/down to improve future recommendations
+- **Playlist library** — save and revisit past playlists
+- **Dark theme** — full dark mode with WCAG-accessible contrast
+- **PWA** — installable as a mobile app with offline fallback
+- **3-step onboarding** — walkthrough for first-time visitors
 
 ## Architecture
 
-**Monorepo Structure**:
+### Monorepo Structure
+
 ```
-crossfit-playlist-generator/
+crossfit-music-generator/
 ├── apps/
-│   ├── web/              # Next.js 15 frontend
-│   └── api/              # FastAPI backend
+│   ├── web/                  # Next.js 16 frontend (React 19, Tailwind v4)
+│   │   ├── app/(tabs)/       # Tab-based layout (Generate, Library, Profile)
+│   │   ├── components/       # UI components, player, onboarding
+│   │   ├── hooks/            # Spotify player hook, auth hooks
+│   │   └── lib/              # Auth config, utilities
+│   └── api/                  # FastAPI backend (Python 3.11+)
+│       ├── agents/           # 3-agent pipeline
+│       ├── clients/          # Anthropic + Spotify API clients
+│       ├── music_sources/    # Pluggable music backends
+│       ├── models/           # Pydantic v2 schemas
+│       └── tests/            # pytest suite
 ├── packages/
-│   ├── shared/           # Shared TypeScript types
-│   └── database/         # Future schema definitions
-└── docs/                 # User stories & architecture
+│   └── shared/               # Shared TypeScript types
+└── docs/                     # Architecture, plans, research
 ```
 
-**Agent-Based Backend**:
-- `WorkoutParserAgent`: Parses workout text into structured phases
-- `MusicCuratorAgent`: Finds and ranks tracks by BPM/energy
-- `PlaylistComposerAgent`: Orders tracks with smooth transitions
+### Three-Agent Pipeline
 
-[Full architecture documentation →](docs/architecture.md)
+| Agent | Role | Mock Mode | Real Mode |
+|-------|------|-----------|-----------|
+| **WorkoutParser** | Parse workout into intensity phases with BPM ranges | Pattern matching | Claude API with tool_use (+ Vision for photos) |
+| **MusicCurator** | Find and score tracks per phase | 50+ in-memory rock tracks | Pluggable: Claude, GetSongBPM, SoundNet |
+| **PlaylistComposer** | Order tracks with smooth transitions | Same | Same (max 30 BPM jump, ±2 min duration tolerance) |
+
+### BPM to Intensity Mapping
+
+| Intensity | BPM Range | Example Phase |
+|-----------|-----------|---------------|
+| Warm-up | 100–120 | General warm-up |
+| Low | 120–130 | Skill work |
+| Moderate | 130–145 | Strength portion |
+| High | 145–160 | Metcon |
+| Very High | 160–175 | Sprint / max effort |
+| Cooldown | 80–100 | Cool-down stretch |
+
+### Music Sources
+
+Configured via `MUSIC_SOURCE` env var:
+
+| Source | Type | Notes |
+|--------|------|-------|
+| `mock` | In-memory | 50+ rock tracks, no API key needed (default) |
+| `claude` | Claude API | AI-suggested tracks, unverified BPM (**current production**) |
+| `getsongbpm` | GetSongBPM API | Real BPM data, free tier |
+| `soundnet` | RapidAPI | Track analysis, free tier |
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
+| **Backend** | FastAPI, Python 3.11+, Pydantic v2 |
+| **AI** | Anthropic Claude API (Haiku for parsing, Vision for photos) |
+| **Music** | Spotify Web Playback SDK, Spotify Web API |
+| **Auth** | Better Auth with Spotify OAuth |
+| **Database** | PostgreSQL (Supabase) via Drizzle ORM |
+| **Analytics** | PostHog |
+| **Monorepo** | Turborepo, pnpm workspaces |
+| **Deployment** | Vercel (frontend), Fly.io (backend) |
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ (tested with v22)
-- pnpm 8+
-- Python 3.11+ (tested with 3.12)
-- (Optional) API keys for production use
+- Node.js 18+ and pnpm 8+
+- Python 3.11 (3.14 is incompatible with pydantic-core)
 
-### Installation
+### Install & Run
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/jarlath-phelan/crossfit-music-generator.git
-   cd crossfit-music-generator
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   # Install frontend dependencies
-   pnpm install
-
-   # Install backend dependencies
-   cd apps/api
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   cd ../..
-   ```
-
-3. **Configure environment variables** (optional - app works out-of-the-box with defaults):
-   ```bash
-   # Backend environment (optional)
-   cd apps/api
-   cp .env.example .env
-   # Edit .env if you want to use real Anthropic/Spotify APIs
-   cd ../..
-   ```
-
-4. **Run the development servers**:
-   ```bash
-   # From project root, run both frontend and backend
-   pnpm dev
-   ```
-
-   Or run them separately:
-   ```bash
-   # Terminal 1: Backend
-   cd apps/api
-   source venv/bin/activate
-   python main.py
-
-   # Terminal 2: Frontend
-   cd apps/web
-   pnpm dev
-   ```
-
-5. **Open the app**:
-   - Frontend: http://localhost:3000
-   - API docs: http://localhost:8000/docs
-
-### Try It Out
-
-1. Enter a workout like: `21-15-9 thrusters 95lbs and pull-ups`
-2. Click "Generate Playlist"
-3. View the parsed workout structure and generated playlist!
-
-## Mock vs Real APIs
-
-### MVP Mode (Default)
-
-The app works immediately without any API keys:
-
-- **Mock Anthropic**: Pattern-matching parser for common workout formats
-- **Mock Spotify**: In-memory database of 50+ curated rock tracks
-
-### Production Mode (Optional)
-
-To use real APIs, create `.env` files:
-
-**apps/api/.env**:
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
-USE_MOCK_ANTHROPIC=false
-USE_MOCK_SPOTIFY=false
+# Clone
+git clone https://github.com/jarlath-phelan/crossfit-music-generator.git
+cd crossfit-music-generator
+
+# Frontend dependencies
+pnpm install
+
+# Backend dependencies
+cd apps/api
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd ../..
+
+# Run both (mock mode, no API keys needed)
+pnpm dev
 ```
 
-**apps/web/.env.local**:
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+- **Frontend**: http://localhost:3000
+- **API docs**: http://localhost:8000/docs
 
-## Project Structure
+### Try It
 
-### Frontend (`apps/web`)
+1. Open http://localhost:3000
+2. Tap "Fran" or type `21-15-9 thrusters 95lbs and pull-ups`
+3. Pick a genre and hit Generate
+4. View the parsed workout structure and generated playlist
 
-```
-apps/web/
-├── app/
-│   ├── page.tsx              # Home page with workout form
-│   ├── actions.ts            # Server Actions for API calls
-│   ├── layout.tsx            # Root layout
-│   └── playlist/[id]/        # Future: Playlist detail page
-├── components/
-│   ├── ui/                   # shadcn/ui components
-│   ├── workout-form.tsx      # Workout input form
-│   ├── workout-display.tsx   # Parsed workout view
-│   └── playlist-display.tsx  # Track list view
-└── lib/
-    └── utils.ts              # Utility functions
-```
+## Configuration
 
-### Backend (`apps/api`)
+### Mock Mode (Default)
 
-```
-apps/api/
-├── main.py                   # FastAPI app & endpoints
-├── config.py                 # Settings management
-├── agents/
-│   ├── workout_parser.py     # Workout parsing agent
-│   ├── music_curator.py      # Track search & scoring
-│   └── playlist_composer.py  # Playlist composition
-├── models/
-│   └── schemas.py            # Pydantic models
-└── mocks/
-    ├── anthropic_mock.py     # Mock Claude API
-    └── spotify_mock.py       # Mock Spotify API
-```
+Works out of the box — no API keys required. Uses pattern-matching parser and 50+ in-memory rock tracks.
 
-## API Documentation
-
-### Endpoint: `POST /api/v1/generate`
-
-Generate a playlist from workout text.
-
-**Request**:
-```json
-{
-  "workout_text": "21-15-9 thrusters 95lbs and pull-ups"
-}
-```
-
-**Response**:
-```json
-{
-  "workout": {
-    "workout_name": "21-15-9",
-    "total_duration_min": 20,
-    "phases": [
-      {
-        "name": "Warm-up",
-        "duration_min": 5,
-        "intensity": "warm_up",
-        "bpm_range": [100, 120]
-      },
-      {
-        "name": "Main WOD",
-        "duration_min": 12,
-        "intensity": "very_high",
-        "bpm_range": [160, 175]
-      },
-      {
-        "name": "Cooldown",
-        "duration_min": 3,
-        "intensity": "cooldown",
-        "bpm_range": [80, 100]
-      }
-    ]
-  },
-  "playlist": {
-    "name": "CrossFit: 21-15-9",
-    "tracks": [
-      {
-        "id": "1",
-        "name": "Use Somebody",
-        "artist": "Kings of Leon",
-        "bpm": 103,
-        "energy": 0.52,
-        "duration_ms": 230000
-      }
-      // ... more tracks
-    ]
-  }
-}
-```
-
-**Rate Limiting**: The API is rate-limited to 10 requests per minute per IP address.
-
-**Interactive API docs**: http://localhost:8000/docs
-
-## Tech Stack
-
-| Category | Technology |
-|----------|-----------|
-| **Frontend** | Next.js 15, React 19, TypeScript, Tailwind CSS v4 |
-| **Backend** | FastAPI, Python 3.11+, Pydantic v2 |
-| **UI Components** | shadcn/ui, Lucide Icons |
-| **Monorepo** | Turborepo, pnpm workspaces |
-| **AI (Future)** | Anthropic Claude API |
-| **Music API (Future)** | Spotify Web API |
-| **Database (Future)** | PostgreSQL, Prisma/Drizzle |
-| **Deployment (Future)** | Vercel (frontend), Railway (backend) |
-
-## Development
-
-### Code Quality
-
-- **TypeScript**: Strict mode enabled
-- **Python**: Type hints with Pydantic v2
-- **Linting**: ESLint (frontend)
-- **Testing**: Planned for future phases (Jest + React Testing Library for frontend, Pytest for backend)
-
-### Environment Variables
+### Production Mode
 
 **Backend** (`apps/api/.env`):
 ```bash
-# API Keys (optional for MVP)
+# Claude API (workout parsing)
 ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+USE_MOCK_ANTHROPIC=false
+
+# Spotify (track resolution + playback)
 SPOTIFY_CLIENT_ID=...
 SPOTIFY_CLIENT_SECRET=...
+USE_MOCK_SPOTIFY=false
 
-# Feature Flags
-USE_MOCK_ANTHROPIC=true
-USE_MOCK_SPOTIFY=true
+# Music source
+MUSIC_SOURCE=claude  # or: mock, getsongbpm, soundnet
 
-# Server Config
+# API security (HMAC signing between frontend and backend)
+API_SHARED_SECRET=...
+
+# Analytics (optional)
+POSTHOG_API_KEY=...
+
+# Server
 HOST=0.0.0.0
 PORT=8000
-LOG_LEVEL=info
+FRONTEND_URL=http://localhost:3000
 ```
 
 **Frontend** (`apps/web/.env.local`):
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+DATABASE_URL=postgresql://...
+BETTER_AUTH_SECRET=...
+SPOTIFY_CLIENT_ID=...
+SPOTIFY_CLIENT_SECRET=...
+API_SHARED_SECRET=...
 ```
 
-### Scripts
+## API
+
+### `POST /api/v1/generate`
+
+Generate a playlist from workout text or image.
+
+**Request** (text):
+```json
+{"workout_text": "21-15-9 thrusters 95lbs and pull-ups"}
+```
+
+**Request** (image):
+```json
+{
+  "workout_image_base64": "<base64>",
+  "image_media_type": "image/jpeg",
+  "workout_text": "optional context"
+}
+```
+
+**Response**: Parsed workout structure + ordered playlist with Spotify URIs, album art, and phase assignments.
+
+**Rate limit**: 10 requests/minute per IP.
+
+**Custom headers** (set by frontend for authenticated users):
+`X-User-Genre`, `X-User-Boost-Artists`, `X-User-Hidden-Tracks`, `X-User-Min-Energy`
+
+### Other Endpoints
+
+- `GET /` — API info and configuration
+- `GET /health` — Health check for all agents
+
+## Deployment
+
+| Service | Platform | URL |
+|---------|----------|-----|
+| Frontend | Vercel | [crossfit-music-generator.vercel.app](https://crossfit-music-generator.vercel.app) |
+| Backend | Fly.io | crossfit-playlist-api.fly.dev |
+| Database | Supabase | PostgreSQL |
+
+**Frontend** auto-deploys from `main` via Vercel. Configured with `rootDirectory: apps/web` and `sourceFilesOutsideRootDirectory: true`.
+
+**Backend** runs on Fly.io (256MB shared CPU, IAD region, always-on). Deployed via `fly deploy` from `apps/api/`.
+
+## Development
 
 ```bash
-# Development
 pnpm dev              # Run all services
-pnpm dev --filter=web # Run only frontend
-pnpm dev --filter=api # Run only backend
-
-# Build
 pnpm build            # Build all apps
-
-# Lint
 pnpm lint             # Lint all code
-
-# Clean
 pnpm clean            # Remove build artifacts
+
+# Backend tests
+cd apps/api && source venv/bin/activate
+pytest tests/ -v
 ```
 
-## Roadmap
+### Branching & Commits
 
-- [x] **Phase 0 (MVP)**: Basic playlist generation with mock APIs
-- [ ] **Phase 1**: Coach profiles and music preferences
-- [ ] **Phase 2**: Multi-user sessions and Spotify integration
-- [ ] **Phase 3**: Real-time biometric integration
-- [ ] **Phase 4**: Mobile apps (iOS/Android)
+- Branches: `type-description` (e.g. `feat-photo-input`, `fix-bpm-parsing`)
+- Commits: `type(scope): description` (e.g. `feat(web): add genre chips`)
 
-[Detailed user stories →](docs/user-stories/)
+## Spotify Notes
 
-## Contributing
-
-Contributions welcome! Please read our contributing guidelines and code of conduct.
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Submit a pull request
+- **Premium required** — the Web Playback SDK only works with Spotify Premium accounts
+- **localhost banned** — use `http://127.0.0.1:3000` as the OAuth redirect URI for local dev
+- Backend pipeline takes ~30-40s with real APIs — frontend has a 60s timeout configured
 
 ## License
 
-[MIT License](LICENSE)
-
-## Acknowledgments
-
-- Inspired by Rob Miller's need for dynamic workout playlists at CrossFit Delaware Valley
-- Built with modern web technologies and AI-first design
-- Music curation defaults to rock genre per coach preference
-
-## Support
-
-- 📚 [Documentation](docs/)
-- 🐛 [Issue Tracker](../../issues)
-- 💬 [Discussions](../../discussions)
+[MIT](LICENSE)
 
 ---
 
-**Built with ❤️ for the CrossFit community**
-
+Built for the CrossFit community.
