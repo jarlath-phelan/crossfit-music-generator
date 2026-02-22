@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # Music pipeline strategy
     music_strategy: str = "claude"  # "claude", "claude_deezer_verify", "deezer_claude_rerank", "claude_two_step", "hybrid"
     soundnet_api_key: Optional[str] = None
+    lastfm_api_key: Optional[str] = None
 
     # API Security
     api_shared_secret: Optional[str] = None  # HMAC shared secret with frontend
