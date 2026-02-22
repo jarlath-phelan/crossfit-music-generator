@@ -22,6 +22,8 @@ interface WorkoutFormProps {
   onNewWorkout?: () => void
   /** Pre-populate the textarea with this text (e.g. from onboarding) */
   initialText?: string
+  /** Called when the internal text value changes (for parent state sync) */
+  onTextChange?: (text: string) => void
 }
 
 const NAMED_WODS: { name: string; text: string }[] = [
@@ -46,9 +48,15 @@ export function WorkoutForm({
   onEdit,
   onNewWorkout,
   initialText,
+  onTextChange,
 }: WorkoutFormProps) {
-  const [workoutText, setWorkoutText] = useState(initialText ?? '')
+  const [workoutText, setWorkoutTextInternal] = useState(initialText ?? '')
   const [inputMode, setInputMode] = useState<InputMode>('text')
+
+  const setWorkoutText = (text: string) => {
+    setWorkoutTextInternal(text)
+    onTextChange?.(text)
+  }
 
   useEffect(() => {
     if (initialText) setWorkoutText(initialText)

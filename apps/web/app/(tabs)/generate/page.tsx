@@ -328,6 +328,7 @@ export default function GeneratePage() {
               }}
               isLoading={state === 'loading'}
               initialText={initialText}
+              onTextChange={(text) => setWorkoutText(text)}
             />
             {/* Genre chips — below input, secondary to workout entry */}
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Music genre">
