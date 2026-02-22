@@ -213,7 +213,7 @@ export default function GeneratePage() {
 
         {/* Loading state */}
         {state === 'loading' && (
-          <div className="space-y-4">
+          <div className="space-y-4" aria-live="polite">
             <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
               <div className="h-1 flex-1 rounded-full bg-[var(--secondary)] overflow-hidden">
                 <div className="h-full bg-[var(--accent)] rounded-full animate-pulse" style={{ width: '60%' }} />

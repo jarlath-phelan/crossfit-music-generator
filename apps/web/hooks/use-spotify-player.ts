@@ -17,7 +17,7 @@ interface UseSpotifyPlayerOptions {
 }
 
 interface UseSpotifyPlayerReturn extends SpotifyPlayerState {
-  play: (uri: string) => void
+  play: (uri: string, allUris?: string[]) => void
   pause: () => void
   resume: () => void
   seek: (positionMs: number) => void
@@ -128,8 +128,12 @@ export function useSpotifyPlayer({
   }, [accessToken, onError])
 
   const play = useCallback(
-    (uri: string) => {
+    (uri: string, allUris?: string[]) => {
       if (!accessToken || !deviceIdRef.current) return
+
+      // If allUris provided, queue entire playlist starting at the given track
+      const uris = allUris ?? [uri]
+      const offset = allUris ? { uri } : undefined
 
       fetch(
         `https://api.spotify.com/v1/me/player/play?device_id=${deviceIdRef.current}`,
@@ -139,7 +143,7 @@ export function useSpotifyPlayer({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({ uris: [uri] }),
+          body: JSON.stringify({ uris, offset }),
         }
       ).catch((err) => {
         const msg = `Failed to play: ${err.message}`

@@ -23,7 +23,7 @@ interface SpotifyPlayerProps {
   currentTrackUri: string | null
   position: number
   duration: number
-  onPlay: (uri: string) => void
+  onPlay: (uri: string, allUris?: string[]) => void
   onPause: () => void
   onResume: () => void
   onSkipNext: () => void
@@ -72,7 +72,11 @@ export function SpotifyPlayer({
     } else if (currentTrackUri) {
       onResume()
     } else if (tracks.length > 0 && tracks[0].spotify_uri) {
-      onPlay(tracks[0].spotify_uri)
+      // Play all tracks starting from the first one
+      const allUris = tracks
+        .map((t) => t.spotify_uri)
+        .filter((uri): uri is string => !!uri)
+      onPlay(tracks[0].spotify_uri, allUris)
     }
   }, [isPlaying, currentTrackUri, tracks, onPlay, onPause, onResume])
 
@@ -153,10 +157,17 @@ export function SpotifyPlayer({
               className="flex-1 h-1.5 bg-[var(--secondary)] rounded-full overflow-hidden cursor-pointer group"
               onClick={handleSeek}
               role="slider"
+              tabIndex={0}
               aria-label="Seek position"
               aria-valuenow={Math.round(progressPercent)}
               aria-valuemin={0}
               aria-valuemax={100}
+              onKeyDown={(e) => {
+                if (!onSeek || duration <= 0) return
+                const step = duration * 0.05
+                if (e.key === 'ArrowRight') onSeek(Math.min(duration, position + step))
+                else if (e.key === 'ArrowLeft') onSeek(Math.max(0, position - step))
+              }}
             >
               <div
                 className="h-full bg-[var(--accent)] rounded-full transition-all duration-300 group-hover:bg-[var(--accent-hover)]"

@@ -152,6 +152,9 @@ export function WorkoutForm({
             aria-describedby="workout-hint"
             aria-required="true"
           />
+          <p id="workout-hint" className="sr-only">
+            Tip: Include durations for better results.
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLE_WORKOUTS.map((example, i) => (
               <button
