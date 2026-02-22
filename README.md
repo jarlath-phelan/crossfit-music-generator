@@ -250,6 +250,14 @@ pytest tests/ -v
 - Branches: `type-description` (e.g. `feat-photo-input`, `fix-bpm-parsing`)
 - Commits: `type(scope): description` (e.g. `feat(web): add genre chips`)
 
+## Roadmap
+
+Research and design docs for upcoming features live in `docs/plans/`:
+
+- **User Taste Profiles** (`2026-02-22-taste-profile-research.md`) — Import preferences from Spotify top artists, Last.fm history, and in-app feedback to personalize recommendations
+- **ML Pipeline** (`2026-02-22-ml-pipeline-design.md`) — Enriched workout analysis with heart rate modeling and smart BPM-to-energy mapping
+- **Deezer Music Source** (`2026-02-21-music-source-research.md`) — Native BPM search via free Deezer API (recommended next music source)
+
 ## Spotify Notes
 
 - **Premium required** — the Web Playback SDK only works with Spotify Premium accounts

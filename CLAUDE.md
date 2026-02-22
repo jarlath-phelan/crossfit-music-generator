@@ -124,6 +124,16 @@ Spotify Audio Features API is deprecated. BPM data comes from:
 - GetSongBPM / SoundNet (production)
 - Claude suggestions (fallback, unverified)
 
+### Upcoming: User Taste Profiles
+
+User music preferences should inform playlist generation. See `docs/plans/2026-02-22-taste-profile-research.md` for full research. Key findings:
+- **Spotify `/me/top/{type}`** — still available, we have OAuth. Import top artists at sign-in to seed preferences.
+- **Last.fm API** — free, rich listening history. Optional enrichment for power users.
+- **In-app signals** — genre chips, track feedback, saved playlists, boost history. Foundation for all users.
+- **Spotify Recommendations API is dead** — deprecated Nov 2024, returns 403 for new apps.
+
+Incorporate this into the next feature planning cycle alongside the ML pipeline design (`docs/plans/2026-02-22-ml-pipeline-design.md`).
+
 ### BPM to Intensity Mapping
 
 ```python
