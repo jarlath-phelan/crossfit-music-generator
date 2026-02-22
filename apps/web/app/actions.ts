@@ -108,7 +108,8 @@ export async function exportToSpotify(
 export async function generatePlaylist(
   workoutText: string,
   imageBase64?: string,
-  imageMediaType?: string
+  imageMediaType?: string,
+  genre?: string
 ): Promise<GeneratePlaylistResponse> {
   const hasText = workoutText?.trim()
   const hasImage = imageBase64 && imageMediaType
@@ -144,7 +145,8 @@ export async function generatePlaylist(
     })
 
     if (profile) {
-      if (profile.defaultGenre) fetchHeaders['X-User-Genre'] = profile.defaultGenre
+      if (genre) fetchHeaders['X-User-Genre'] = genre
+      else if (profile.defaultGenre) fetchHeaders['X-User-Genre'] = profile.defaultGenre
       if (profile.excludeArtists && (profile.excludeArtists as string[]).length > 0) {
         fetchHeaders['X-User-Exclude-Artists'] = (profile.excludeArtists as string[]).join(',')
       }
@@ -172,6 +174,11 @@ export async function generatePlaylist(
     if (hiddenTracks.length > 0) {
       fetchHeaders['X-User-Hidden-Tracks'] = hiddenTracks.join(',')
     }
+  }
+
+  // Pass genre for unauthenticated users too
+  if (genre && !fetchHeaders['X-User-Genre']) {
+    fetchHeaders['X-User-Genre'] = genre
   }
 
   const controller = new AbortController()

@@ -25,12 +25,17 @@ const LOADING_MESSAGES = [
   'Composing playlist...',
 ]
 
+const GENRE_OPTIONS = [
+  'Rock', 'Hip-Hop', 'EDM', 'Metal', 'Pop', 'Punk', 'Country', 'Indie',
+]
+
 export default function GeneratePage() {
   const [state, setState] = useState<GenerateState>('empty')
   const [isSaving, setIsSaving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [result, setResult] = useState<GeneratePlaylistResponse | null>(null)
   const [workoutText, setWorkoutText] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState('Rock')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
   const { data: session } = authClient.useSession()
@@ -78,7 +83,7 @@ export default function GeneratePage() {
     setResult(null)
     setWorkoutText(text)
     try {
-      const data = await generatePlaylist(text, imageBase64, imageMediaType)
+      const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
       setResult(data)
       setState('results')
       toast.success('Playlist generated!')
@@ -193,6 +198,28 @@ export default function GeneratePage() {
         }
       />
       <div className="container mx-auto px-4 max-w-5xl space-y-3">
+        {/* Genre chips */}
+        {state !== 'results' && (
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Music genre">
+            {GENRE_OPTIONS.map((genre) => (
+              <button
+                key={genre}
+                type="button"
+                role="radio"
+                aria-checked={selectedGenre === genre}
+                onClick={() => setSelectedGenre(genre)}
+                className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                  selectedGenre === genre
+                    ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                    : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30'
+                }`}
+              >
+                {genre}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Workout input — hero heading in results, full form otherwise */}
         {state === 'results' ? (
           <div className="flex items-center justify-between">
