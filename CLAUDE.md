@@ -263,6 +263,8 @@ Camera uses `navigator.mediaDevices.getUserMedia()` for live viewfinder with pro
 
 ## Deployment
 
+### Frontend (Vercel)
+
 **Production**: https://crossfit-music-generator.vercel.app
 
 Deployed on Vercel from the monorepo root with `rootDirectory: apps/web` and `sourceFilesOutsideRootDirectory: true` (configured via Vercel project settings).
@@ -275,15 +277,14 @@ vercel logs <url>          # Check build logs
 
 Vercel config: `apps/web/vercel.json` (framework: nextjs). Environment variables (`BETTER_AUTH_SECRET`, `DATABASE_URL`, Spotify credentials) must be set in the Vercel dashboard.
 
-## Deployment
-
 ### Backend (Render)
 
-Configured via `render.yaml` at repo root. Deploys `apps/api` as a Python web service.
+**Production**: https://crossfit-playlist-api.onrender.com
 
-- **Production URL**: Set after first deploy (e.g., `https://crossfit-playlist-api.onrender.com`)
+Configured via `render.yaml` at repo root. Deploys `apps/api` as a Python web service. Auto-deploys from `main`.
+
 - `FRONTEND_URL` supports comma-separated origins for CORS
-- Free tier runs in mock mode (`USE_MOCK_ANTHROPIC=true`, `USE_MOCK_SPOTIFY=true`)
+- API keys (`ANTHROPIC_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `API_SHARED_SECRET`) set in Render dashboard
 
 ## Debugging
 
