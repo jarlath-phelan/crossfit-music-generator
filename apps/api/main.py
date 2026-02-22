@@ -119,7 +119,7 @@ app.add_middleware(
         "Content-Type", "Authorization",
         "X-User-ID", "X-User-Genre", "X-User-Exclude-Artists", "X-User-Min-Energy",
         "X-User-Boost-Artists", "X-User-Hidden-Tracks", "X-Music-Source",
-        "X-User-Signature",
+        "X-User-Signature", "X-Music-Strategy", "X-User-Taste-Description",
     ],
 )
 
@@ -275,6 +275,9 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     user_hidden_tracks = request.headers.get("X-User-Hidden-Tracks")
     if user_id:
         logger.info("Authenticated request received")
+    music_strategy = request.headers.get("X-Music-Strategy", settings.music_strategy)
+    logger.info(f"Music strategy: {music_strategy}")
+
     if user_genre:
         logger.info(f"User genre preference: {user_genre}")
 

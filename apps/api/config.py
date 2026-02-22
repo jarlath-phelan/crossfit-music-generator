@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Music Source Configuration
     music_source: str = "mock"  # "mock", "getsongbpm", "soundnet", "claude"
     getsongbpm_api_key: Optional[str] = None
+
+    # Music pipeline strategy
+    music_strategy: str = "claude"  # "claude", "claude_deezer_verify", "deezer_claude_rerank", "claude_two_step", "hybrid"
     soundnet_api_key: Optional[str] = None
 
     # API Security

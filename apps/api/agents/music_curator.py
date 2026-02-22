@@ -24,6 +24,21 @@ def create_music_source() -> MusicSource:
     elif source_name == "claude":
         from music_sources.claude_suggestions import ClaudeMusicSource
         return ClaudeMusicSource()
+    elif source_name == "deezer":
+        from music_sources.deezer import DeezerMusicSource
+        return DeezerMusicSource()
+    elif source_name == "claude_deezer_verify":
+        from music_sources.claude_deezer_verify import ClaudeDeezerVerifySource
+        return ClaudeDeezerVerifySource()
+    elif source_name == "claude_two_step":
+        from music_sources.claude_two_step import TwoStepClaudeMusicSource
+        return TwoStepClaudeMusicSource()
+    elif source_name == "hybrid":
+        from music_sources.hybrid import HybridMusicSource
+        return HybridMusicSource()
+    elif source_name == "deezer_claude_rerank":
+        from music_sources.deezer_claude_rerank import DeezerClaudeRerankSource
+        return DeezerClaudeRerankSource()
     else:
         from music_sources.mock_source import MockMusicSource
         return MockMusicSource()
