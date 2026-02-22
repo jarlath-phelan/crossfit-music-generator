@@ -1,8 +1,9 @@
 # CrossFit Workout Platform API Research
 
-**Date**: 2026-02-21
-**Purpose**: Evaluate feasibility of auto-pulling daily WODs from CrossFit workout platforms for the Crossfit Playlist Generator.
+**Date**: 2026-02-21 (updated 2026-02-21 with additional research)
+**Purpose**: Evaluate feasibility of auto-pulling daily WODs from CrossFit workout platforms for Crank (CrossFit Playlist Generator).
 **Context**: Task 14 (Stream D) from the go-live plan v2.
+**600,000+** athletes use SugarWOD globally, making it the largest CrossFit workout tracking platform.
 
 ---
 
@@ -88,7 +89,15 @@ Only gym owners/admins with an active SugarWOD subscription can generate API key
 }
 ```
 
-**Scoring types**: Time, Rounds+Reps, Reps, Load, Distance, Points, Calories, Other
+**Scoring types**: Time, Rounds+Reps, Reps, Load, Distance, Points, Calories, Decimal, Other
+
+**Multi-set scoring calculations**: Minimum (e.g., Tabata worst set), Sum Total (e.g., Fight Gone Bad), Average, First, Last
+
+**Scoring types map to workout styles**, which is useful for Crank's intensity estimation:
+- Time = "For Time" workouts (Fran, Grace) -- high intensity, short duration
+- Rounds+Reps / Reps = AMRAP workouts -- sustained moderate-high intensity
+- Load = Strength/lifting -- heavy effort, long rest periods
+- Calories / Distance = Machine-based or running -- steady state cardio
 
 ### Special: WorkoutsHQ Endpoint
 
@@ -103,11 +112,20 @@ The `/v2/workoutshq` endpoint provides CrossFit HQ mainsite programming. This is
 
 ### Terms of Service
 
-- You may charge for your application
+Source: https://www.sugarwod.com/developers-terms-service/
+
+- **License**: Non-exclusive, non-assignable, non-transferable license to use the APIs for developing applications
+- You MAY charge for your application
 - You may NOT sell, rent, lease, sublicense, redistribute, or syndicate access to the SugarWOD API itself
 - SugarWOD can suspend or terminate API access at any time without notice
 - They can limit access if your app negatively affects their service
+- License cannot be assigned or delegated, including during a change of control
+- Third-party applications are not considered part of SugarWOD's service
 - Still labeled as "beta" -- data formats may change
+
+### Corporate Context
+
+SugarWOD was acquired by **Daxko** in May 2019 (press release: https://www.prnewswire.com/news-releases/daxko-acquires-sugarwod-to-become-the-unrivaled-software-provider-for-affiliate-gyms-300851711.html). Daxko also owns **Zen Planner**. As of January 2026, the two platforms are being more tightly integrated, with a combined roadmap focused on reducing friction and improving performance. SugarWOD has stated they will continue to work with other gym management platforms (MindBody, Pike13, PushPress, etc.). The API remains active and accessible. This corporate backing from Daxko suggests the API will remain stable, though the "at any time without notice" termination clause remains a risk factor.
 
 ### Webhook API
 
@@ -116,6 +134,21 @@ A preliminary Webhook API exists for select partners. Webhook body schema mirror
 ### Marketplace / Programming Partners
 
 SugarWOD has a Workout Marketplace with programming from: CrossFit Affiliate Programming (CAP), CompTrain, PRVN Fitness, Invictus, WODprep, and many others. All of these flow through SugarWOD's data model.
+
+### Community Projects and Libraries
+
+No official SDK exists for any language. The community ecosystem is small but demonstrates API viability:
+
+| Project | Language | Description | URL |
+|---------|----------|-------------|-----|
+| **WODCal** | Python | Fetches SugarWOD workouts, uses PaLM LLM to estimate duration, creates Google Calendar events | https://github.com/misha-khar/WODCal |
+| **SugarWOD_Project** | Python | Web scraper + Bokeh dashboard for workout data visualization | https://github.com/chrisjackr/SugarWOD_Project |
+| **sugarWod** | TypeScript/Next.js | Next.js app integrating with SugarWOD API | https://github.com/robneal/sugarWod |
+| **SugarWOD_to_MyFitnessPal** | Python | Planned integration (issue stage) to sync workout data | https://github.com/ifwatts/SugarWOD_to_MyFitnessPal |
+
+**Key observation**: The **WODCal** project is the closest analogue to what we want to build. It fetches today's workout from SugarWOD and passes the description text to an LLM for processing -- exactly our pattern with `WorkoutParserAgent`.
+
+SugarWOD also provides official WordPress integration (plugin + RSS feeds + iframe embeds) and a custom WordPress plugin approach that fetches WODs from the API and saves them as WordPress posts.
 
 ### Feasibility: HIGH
 
@@ -334,10 +367,12 @@ The CrossFit Games API could provide workout descriptions for Open/Games workout
 
 ### PushPress
 
-- **API**: Mentioned in product docs, but no public developer documentation found
+- **API**: Limited/no public developer API. GetApp reports "does not have an API available", though some product docs mention website integration API
 - **Workout Features**: Train by PushPress supports benchmark workouts, Open workouts, and daily programming
-- **Integration Partners**: Includes CrossFit Affiliate Programming
-- **Feasibility**: LOW -- no public API documentation available
+- **Integration Model**: Pre-built partnerships (Zapier, Wix, WordPress, Stripe, Mailchimp, Slack, etc.) rather than developer API
+- **Workout Data Import**: CSV files only for workout uploads and history imports
+- **Integration Partners**: Includes CrossFit Affiliate Programming, hundreds of third-party apps
+- **Feasibility**: LOW -- no public API documentation available, CSV-only data import
 
 ### TrainHeroic
 
@@ -609,21 +644,41 @@ This requires gym owners to opt in, which limits initial adoption but provides t
 
 ## Sources
 
+### SugarWOD
 - [SugarWOD API Documentation](https://app.sugarwod.com/developers-api-docs)
 - [SugarWOD API Getting Started](https://help.sugarwod.com/hc/en-us/articles/115013863908-API-Getting-Started)
 - [SugarWOD API Terms of Service](https://app.sugarwod.com/developers-terms-of-service)
 - [SugarWOD API Announcement (2017)](https://www.sugarwod.com/2017/08/sugarwod-api-announcement/)
+- [SugarWOD API Knowledge Base](https://help.sugarwod.com/hc/en-us/sections/115003106728-API)
+- [SugarWOD Individual Athlete Data](https://help.sugarwod.com/hc/en-us/articles/115013863988-API-Individual-Athlete-data)
+- [SugarWOD Scoring Options](https://help.sugarwod.com/hc/en-us/articles/360000708128-What-are-the-workout-scoring-options-in-SugarWOD-)
 - [SugarWOD Workout Marketplace](https://www.sugarwod.com/workout-marketplace/)
+- [SugarWOD Software Partners](https://www.sugarwod.com/software-partners/)
 - [CrossFit Affiliate Programming on SugarWOD](https://www.sugarwod.com/2023/05/crossfit-affiliate-programming-sugarwod/)
+
+### Corporate/Acquisition
+- [Daxko Acquires SugarWOD (PR Newswire)](https://www.prnewswire.com/news-releases/daxko-acquires-sugarwod-to-become-the-unrivaled-software-provider-for-affiliate-gyms-300851711.html)
+- [Zen Planner + SugarWOD Joining Forces](https://zenplanner.com/affiliate-gym/announcing-sugarwod/)
+- [Zen Planner + SugarWOD 2026 Roadmap](https://zenplanner.com/blogs/state-of-the-nation-whats-new-and-whats-next-for-zen-planner-and-sugarwod/)
+- [Zen Planner + SugarWOD FAQ](https://zenplanner.com/blogs/zen-planner-sugarwod-frequently-asked-questions/)
+
+### Community Projects
+- [WODCal (SugarWOD + LLM)](https://github.com/misha-khar/WODCal)
+- [SugarWOD_Project (scraper + dashboard)](https://github.com/chrisjackr/SugarWOD_Project)
+- [sugarWod (Next.js integration)](https://github.com/robneal/sugarWod)
+- [SugarWOD_to_MyFitnessPal](https://github.com/ifwatts/SugarWOD_to_MyFitnessPal/issues/1)
+
+### Alternative Platforms
 - [Wodify Formatted Workout Endpoint](https://help.wodify.com/hc/en-us/articles/208736968-Retrieve-Formatted-Workout-Endpoint)
 - [Wodify Program API](https://help.wodify.com/hc/en-us/articles/209425797-Wodify-s-Program-API)
 - [Wodify Web Integrations](https://help.wodify.com/hc/en-us/sections/360011330174-Web-Integrations)
 - [BTWB WordPress Plugin](https://btwb.blog/2014/09/10/beyond-the-whiteboard-wordpress-integration/)
 - [BTWB API Discussion](https://support.btwb.com/en/support/discussions/topics/35000020225)
 - [BTWB GitHub](https://github.com/btwb)
+- [BTWB Export Tool](https://github.com/diggerdric/btwb-export)
+- [PushPress Integrations](https://www.pushpress.com/integrations)
 - [Reverse Engineering CrossFit Games API](https://rubiconjosh.hashnode.dev/reverse-engineering-crossfit-games-api)
 - [CrossFit Games API R Package](https://github.com/ekholme/crossfitgames)
 - [CompTrain Gym Programming](https://www.comptrain.com/gym-programming)
 - [Mayhem Nation Daily Workouts](https://www.mayhemnation.com/blogs/wods)
 - [WODwell](https://wodwell.com/)
-- [WODCal (SugarWOD client example)](https://github.com/misha-khar/WODCal)

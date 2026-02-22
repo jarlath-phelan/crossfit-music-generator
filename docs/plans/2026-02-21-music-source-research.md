@@ -1,445 +1,763 @@
-# Music Source Research: BPM Data Alternatives
+# Music Source Research: BPM Data for Crank
 
-**Date**: 2026-02-21
-**Context**: Our CrossFit playlist generator needs to find songs at specific BPM ranges for different workout phases. This document evaluates all viable alternatives for obtaining BPM/tempo data for music tracks.
-
-## Current State
-
-| Source | Status | Notes |
-|--------|--------|-------|
-| GetSongBPM API | Active, in codebase | Free, requires backlink attribution |
-| SoundNet / RapidAPI Track Analysis | Dead | Acquired by Nokia, endpoint no longer responds |
-| Claude AI suggestions | Active, in codebase | Works but BPM accuracy is unverified |
-| Spotify Audio Features API | Deprecated Nov 2024 | Returns 403 for new apps |
-| Mock source | Active, in codebase | 50+ hardcoded rock tracks for dev/testing |
+> **Date**: 2026-02-21 (updated)
+> **Context**: Crank is a CrossFit playlist generator that matches music BPM to workout intensity phases. This document evaluates all viable alternatives for obtaining BPM/tempo data for music tracks, and provides prioritized recommendations for integration.
 
 ---
 
-## 1. BPM Database APIs
+## Table of Contents
 
-### 1a. GetSongBPM (already integrated)
+1. [Current State](#1-current-state)
+2. [BPM Database APIs](#2-bpm-database-apis)
+3. [Audio Analysis Services](#3-audio-analysis-services)
+4. [Music Discovery & Streaming APIs](#4-music-discovery--streaming-apis)
+5. [Open Source Libraries & Datasets](#5-open-source-libraries--datasets)
+6. [Workout Music Services](#6-workout-music-services)
+7. [Community & DJ Databases](#7-community--dj-databases)
+8. [AI-Assisted Approaches](#8-ai-assisted-approaches)
+9. [Comparative Analysis](#9-comparative-analysis)
+10. [Prioritized Recommendations](#10-prioritized-recommendations)
+
+---
+
+## 1. Current State
+
+Crank's `MusicSource` interface (`apps/api/music_sources/base.py`) defines a pluggable system where each source implements `search_by_bpm(bpm_min, bpm_max, genre, limit)` and returns `TrackCandidate` objects with name, artist, BPM, energy, duration, and a `verified_bpm` flag.
+
+### Current Sources
+
+| Source | Status | BPM Verified | File | Notes |
+|--------|--------|-------------|------|-------|
+| **MockMusicSource** | Dev only | N/A | `mock_source.py` | 50 hardcoded rock tracks |
+| **GetSongBPMMusicSource** | Implemented, not yet live | Yes | `getsongbpm.py` | Free, requires attribution backlink |
+| **SoundNetMusicSource** | Dead | Yes | `soundnet.py` | RapidAPI endpoint acquired by Nokia, no longer available |
+| **ClaudeMusicSource** | Production fallback | No | `claude_suggestions.py` | Claude suggests songs with BPM estimates; flexible but unverified |
+
+### The Core Problem
+
+Spotify deprecated its Audio Features API (including BPM/tempo) on November 27, 2024. New apps get 403 errors on `/v1/audio-features/{id}` and `/v1/audio-analysis/{id}`. Only apps that had a pending quota extension before that date retain access. There is no migration path. Spotify's February 2026 migration guide further tightened restrictions. This removed the most reliable, widely-used source of BPM data from the ecosystem.
+
+**Our Spotify status**: We have Spotify credentials for playlist creation and track search, but we are NOT grandfathered for Audio Features access.
+
+---
+
+## 2. BPM Database APIs
+
+These services maintain pre-computed BPM databases and expose them via REST APIs.
+
+### 2a. GetSongBPM (already implemented)
 
 - **URL**: https://getsongbpm.com/api
-- **Availability**: Active. Registration form on the API page.
-- **Cost**: Free. Mandatory backlink to getsongbpm.com required on your site or app store listing, or account is suspended without notice.
-- **Rate limits**: Not publicly documented; appears generous for moderate use.
-- **Accuracy**: Database-sourced BPM values. Generally reliable for well-known tracks.
-- **Coverage**: Claims "millions of song tempos." Skews toward popular Western music.
-- **Integration**: Already implemented in `apps/api/music_sources/getsongbpm.py`. Uses `/tempo/` endpoint with a target BPM, then filters results to our min/max range.
-- **Limitations**: No genre filtering in the tempo search endpoint. No duration data returned (we default to 210,000ms). Search is by exact BPM rather than range, so we search the midpoint and filter.
-- **Verdict**: Keep as primary source. Registration can be slow but the API works well once you have a key.
+- **Database Size**: 6+ million songs
+- **Cost**: Free
+- **Requirements**: Must display a backlink to getsongbpm.com; app must be registered with valid email
+- **BPM Source**: Their own audio recognition scripts (tempo, key, mood analysis)
+- **Key Endpoints**:
+  - `/tempo/` -- Search songs by BPM (target tempo)
+  - `/search/` -- Search by title and/or artist (Title-Artist search first, falls back to Title-only)
+  - `/song/` -- Get song details including BPM, key, danceability
+- **Response Data**: Song title, artist, BPM, key, time signature, danceability, acousticness, album info. Returns JSON; HTTP 200 on success with array of values.
+- **Rate Limits**: Not publicly documented; appears generous for moderate use
+- **Verified BPM**: Yes (audio analysis)
+- **Limitations**:
+  - No duration data in API response (we default to 210s)
+  - No energy field (we estimate from BPM via heuristic in our code)
+  - Tempo endpoint returns songs AT a specific BPM, not in a range -- must search midpoint and filter
+  - Genre filtering not natively supported in tempo search
+  - Backlink requirement may complicate mobile/PWA use
+- **Integration Status**: Already implemented in `apps/api/music_sources/getsongbpm.py`
+- **Verdict**: Strong candidate for primary verified BPM source. Free, large database, already coded. The backlink requirement is the main friction point.
 
-### 1b. Tunebat / Songstats API
+### 2b. Tunebat / Songstats API
 
 - **URL**: https://tunebat.com/API (powered by Songstats)
-- **Availability**: Active. Tunebat has 70M+ tracks. API access is through their partner Songstats.
-- **Cost**: Songstats API pricing is not publicly listed; you must contact sales. Tunebat's "Full Package" consumer plan is separate from API access.
-- **Rate limits**: Unknown; requires sales conversation.
-- **Accuracy**: Tunebat's BPM/key data was historically sourced from Spotify's Audio Features API. With that API now deprecated, their data source for new tracks is unclear. Existing catalog data should still be accurate.
-- **Coverage**: 70M+ tracks including Spotify, Apple Music, YouTube, TikTok, Beatport catalogs.
-- **Integration complexity**: Medium. Songstats API is well-documented at docs.songstats.com. Would need a new `MusicSource` implementation.
-- **Limitations**: Pricing unknown and likely enterprise-oriented. Data provenance post-Spotify-deprecation is a question mark. Not clear if you can search by BPM range directly.
-- **Verdict**: Worth investigating if we need a larger catalog. The sales-gated pricing is a barrier for a small/free project.
+- **Database Size**: 70+ million tracks
+- **Cost**: Consumer product free; Pro $7.99/month. API access via Songstats partnership -- enterprise pricing, must contact sales.
+- **BPM Source**: Historically powered by Spotify Web API data. Post-deprecation data source for new tracks is unclear.
+- **Data Available**: BPM, key, energy, danceability, happiness, popularity, release date, label
+- **Rate Limits**: Unknown for API tier
+- **Verified BPM**: Yes for existing catalog
+- **Limitations**:
+  - No public free API tier for developers
+  - Enterprise pricing through Songstats likely expensive for a free product
+  - Historical reliance on Spotify data raises questions about freshness post-deprecation
+  - Not clear if you can search by BPM range directly
+- **Verdict**: Massive database but no affordable API access. Not viable for Crank's free-first model unless they open a startup/indie tier.
 
-### 1c. Soundcharts Audio Features API
+### 2c. Soundcharts Audio Features API
 
 - **URL**: https://soundcharts.com/en/audio-features-api
-- **Availability**: Active. 1,000 free requests (no credit card), then paid tiers.
-- **Cost**: Starts at $250/month for 500K requests. Enterprise tiers available.
-- **Rate limits**: 10,000 requests/minute across all plans.
-- **Accuracy**: High. Provides BPM, key, time signature, energy, valence, danceability, and more. Does not require audio file upload -- you look up by UUID, ISRC, or platform IDs (Spotify, Apple Music).
-- **Coverage**: "Millions of tracks" across major platforms.
-- **Integration complexity**: Medium. REST API with standard identifiers. Good documentation.
-- **Limitations**: $250/month minimum is expensive for a free product. The 1,000 free requests are good for prototyping but not production.
-- **Verdict**: Too expensive for our use case right now. Could be viable if we monetize and need high-quality, high-volume BPM data.
+- **Coverage**: Millions of tracks, resolved via UUID, ISRC, or platform IDs (Spotify, Apple Music)
+- **Features**: BPM/tempo, key, mode, time signature, loudness, energy, valence, danceability, acousticness, instrumentalness, speechiness, liveness
+- **Cost**: Self-served API plans start at 500K requests/month. All plans billed monthly via credit card. Estimated starting around $250/month based on community reports. Must contact sales for exact pricing.
+- **Rate Limits**: 10,000 requests/minute across all plans
+- **API Tiers**: Standard (most endpoints) and Premium (all endpoints including those behind a lock icon)
+- **Verified BPM**: Yes (their own analysis pipeline)
+- **Strengths**:
+  - Rich feature set beyond just BPM (energy, valence, danceability) -- effectively the full Spotify Audio Features replacement
+  - Can resolve tracks by Spotify ID, Apple Music ID, or ISRC
+  - Active, well-funded product with enterprise backing
+- **Limitations**:
+  - Enterprise pricing; likely hundreds of dollars per month minimum
+  - Requires track lookup by ID, not a "search by BPM range" endpoint
+  - Would need a two-step workflow: discover track elsewhere, then enrich with Soundcharts
+- **Verdict**: Best-in-class Spotify Audio Features replacement for enrichment. Too expensive as a primary source for Crank right now, but excellent for BPM verification if budget allows later.
 
-### 1d. Cyanite AI Music Analysis API
+### 2d. Cyanite AI Music Analysis API
 
 - **URL**: https://cyanite.ai / https://api-docs.cyanite.ai
-- **Availability**: Active since 2019. GraphQL API.
-- **Cost**: Custom pricing; must contact sales. Free tier for academic researchers ("Cyanite for Innovators" program).
-- **Rate limits**: Unknown; depends on plan.
-- **Accuracy**: AI-powered analysis providing BPM, key, genre, mood, mood waves, energy, instruments. Analysis is performed on audio, not just metadata, so BPM accuracy should be high.
-- **Coverage**: Primarily aimed at production music libraries and publishers. You can analyze your own audio or search their partners' catalogs.
-- **Integration complexity**: Medium-high. GraphQL API (not REST). Would need to upload audio or have tracks in their system.
-- **Limitations**: Enterprise-oriented pricing. Not a simple "search by BPM" API -- more of a full music intelligence platform. Suggested as the replacement for Spotify Audio Features by the community, but the pricing model is different.
-- **Verdict**: Overkill for our needs. Better suited for music libraries and labels.
+- **How it Works**: Converts tracks to spectrograms, applies computer vision to understand musical structure, refines through post-processing
+- **Features**: BPM, genre, mood, instruments, lyric theme, tempo, energy dynamics (per 15-second segment), key
+- **Cost**: API usage fee is 290 EUR/month base; total price depends on catalog size and features. Free tier for academic researchers ("Cyanite for Innovators" program).
+- **Coverage**: 45+ million songs tagged; 150+ companies using
+- **API Style**: GraphQL
+- **Verified BPM**: Yes (ML audio analysis)
+- **Strengths**:
+  - Energy dynamics per 15-second segment is uniquely valuable for workout phasing (could match song energy arc to CrossFit intensity phases)
+  - AI-powered mood and instrument detection
+  - Can analyze uploaded audio files
+- **Limitations**:
+  - Expensive (290+ EUR/month base)
+  - Oriented toward music licensing and publishers, not consumer app development
+  - GraphQL API (not REST) adds integration complexity
+  - Requires audio file upload or catalog integration for custom content
+- **Verdict**: The per-segment energy analysis would be transformative for CrossFit playlists (imagine matching a song whose energy builds at 2:00 to the start of an AMRAP). However, far too expensive for Crank at this stage. Aspirational target if we monetize.
 
-### 1e. SongBPM.com
+### 2e. SongBPM.com / SongData.io / BPMDatabase.com
 
-- **URL**: https://songbpm.com
-- **Availability**: Website is active, but there is no public developer API.
-- **Integration**: Would require scraping, which is fragile and likely against their ToS.
-- **Verdict**: Not viable as a programmatic source.
-
-### 1f. BPMDatabase.com
-
-- **URL**: https://www.bpmdatabase.com
-- **Availability**: Website active, no public API.
-- **Verdict**: Not viable as a programmatic source.
-
----
-
-## 2. Audio Analysis (Open Source BPM Detection)
-
-These libraries analyze audio files directly to detect BPM. They require access to audio samples, which means either the user uploads audio or we have a licensed audio source.
-
-### 2a. Essentia (Python/C++)
-
-- **URL**: https://essentia.upf.edu
-- **Availability**: Open source (AGPLv3). Actively maintained by the Music Technology Group at UPF Barcelona.
-- **Cost**: Free (AGPL license -- copyleft, requires sharing source code if distributed).
-- **Accuracy**: High. `RhythmExtractor2013` is recommended for BPM/beat detection with two modes: "multifeature" (slower, more accurate) and "degara" (faster). Used in academic MIR research. Also provides energy, key, mood, and many other features.
-- **Performance**: Fast. Completed benchmarks in ~4 minutes (vs. librosa's ~2 hours on the same dataset).
-- **Integration complexity**: Medium. Available via pip (`essentia`). C++ backend with Python bindings.
-- **Limitations**: Requires access to audio files. Cannot help us search for tracks -- only analyze audio we already have. AGPL license may be a concern for commercial use.
-- **WebAssembly variant**: `essentia.js` runs in the browser via WebAssembly. Could theoretically analyze Spotify preview clips client-side, but this is a stretch.
-- **Verdict**: Best-in-class for audio analysis accuracy and speed. Useful if we ever need to verify BPM claims from other sources, or if we build a pipeline that analyzes audio previews.
-
-### 2b. librosa (Python)
-
-- **URL**: https://librosa.org
-- **Availability**: Open source (ISC license -- permissive). Widely used.
-- **Cost**: Free.
-- **Accuracy**: Good. Uses dynamic programming beat tracker (`librosa.beat.beat_track()`). Industry standard for MIR in Python (used by Spotify and YouTube Music internally).
-- **Performance**: Slow. Benchmarked at ~2 hours on the same dataset Essentia completed in 4 minutes. Not suitable for real-time or high-throughput.
-- **Integration complexity**: Easy. Pure Python with numpy/scipy. `pip install librosa`.
-- **Limitations**: Same as Essentia -- requires audio files. Significantly slower than Essentia.
-- **Verdict**: Good for offline analysis or prototyping. Too slow for real-time use in production.
-
-### 2c. madmom (Python)
-
-- **URL**: https://github.com/CPJKU/madmom
-- **Availability**: Open source. Still considered state-of-the-art for beat tracking.
-- **Cost**: Free.
-- **Accuracy**: Very high. Uses RNNs with a dynamic Bayesian network (DBN) approximated by HMM. Multi-model setup with genre-specific RNNs. May round BPM to nearest integer.
-- **Performance**: Better suited for offline/batch processing. Slower than Essentia, faster than librosa.
-- **Integration complexity**: Medium. Python with compiled C extensions.
-- **Limitations**: Requires audio files. Better for offline batch work than real-time analysis.
-- **Verdict**: Best accuracy for beat tracking specifically, but requires audio access.
-
-### 2d. aubio (Python/C)
-
-- **URL**: https://aubio.org
-- **Availability**: Open source (GPLv3). Python bindings available.
-- **Cost**: Free.
-- **Accuracy**: Good. Designed for real-time audio analysis.
-- **Performance**: Fast. Designed for real-time beat detection.
-- **Integration complexity**: Easy. `pip install aubio`.
-- **Limitations**: Requires audio files. GPL license.
-- **Verdict**: Good for real-time scenarios. Less accurate than madmom or Essentia for BPM estimation.
-
-### 2e. Tempo-CNN (Python)
-
-- **URL**: https://github.com/hendriks73/tempo-cnn
-- **Availability**: Open source. Published at ISMIR 2018.
-- **Cost**: Free.
-- **Accuracy**: Deep learning approach using CNNs on mel spectrograms. Supports local tempo estimation (tempo changes within a track). Has `--interpolate` flag for sub-integer BPM precision.
-- **Integration complexity**: Medium. Available via pip. Also integrated into Essentia as `es.TempoCNN()`.
-- **Limitations**: Requires audio files. Neural network models need to be downloaded.
-- **Verdict**: Interesting for advanced tempo analysis. Best used through Essentia's integration.
-
-### Audio Analysis Summary
-
-| Library | Accuracy | Speed | License | Best For |
-|---------|----------|-------|---------|----------|
-| Essentia | High | Fast | AGPL | Production BPM verification |
-| madmom | Very High | Medium | BSD | Highest-accuracy beat tracking |
-| librosa | Good | Slow | ISC | Prototyping, research |
-| aubio | Good | Very Fast | GPL | Real-time analysis |
-| Tempo-CNN | High | Medium | MIT | Local tempo / tempo changes |
-
-**Key insight**: Audio analysis libraries are excellent for *verifying* BPM but cannot help us *discover* tracks. They complement BPM databases rather than replacing them.
+- **SongBPM.com** (https://songbpm.com): BPM and key lookup. No public API.
+- **SongData.io** (https://songdata.io): 80+ million songs with BPM, key, popularity, recommendations. No public developer API found.
+- **BPMDatabase.com** (https://www.bpmdatabase.com): 100K+ community-submitted profiles. No public API (Django web app).
+- **Verdict**: None viable as programmatic sources -- consumer-facing lookup tools only.
 
 ---
 
-## 3. MusicBrainz / AcousticBrainz
+## 3. Audio Analysis Services
 
-### 3a. MusicBrainz
+These services analyze audio files or fingerprints to extract BPM and other features.
 
-- **URL**: https://musicbrainz.org
-- **Availability**: Active. Open music encyclopedia with 2.6M artists, 4.7M releases, 35.2M recordings.
-- **Cost**: Free. Open data (CC license).
-- **Rate limits**: 1 request/second for the API.
-- **BPM data**: MusicBrainz itself does NOT store BPM data. It stores metadata (artist, release, recording IDs).
-- **Integration**: Good REST API. Useful for resolving track identities (MBIDs) which can then be used to look up BPM from other sources.
-- **Verdict**: Useful as a track identity resolver, not as a BPM source.
+### 3a. Shazam / ShazamKit
 
-### 3b. AcousticBrainz
+- **URL**: https://developer.apple.com/shazamkit/ (official), https://rapidapi.com (third-party)
+- **How it Works**: Audio fingerprinting to identify songs; returns metadata including tempo
+- **Cost**: ShazamKit is free via Apple developer program. Third-party Shazam APIs on RapidAPI have free tiers.
+- **Features**: Song identification, tempo, key, genre, album art, streaming links
+- **Verified BPM**: Yes (for identified tracks)
+- **Limitations**:
+  - Designed for audio recognition (input is audio), not BPM-based search
+  - Cannot search "give me songs at 150 BPM" -- must identify a specific audio clip
+  - ShazamKit requires Apple ecosystem integration
+- **Verdict**: Wrong tool for our use case. Shazam identifies what's playing, not what to play.
 
-- **URL**: https://acousticbrainz.org
-- **Availability**: Project ended in 2022. No longer accepting new data. Website and API "continue to be available" but this is on borrowed time.
-- **Cost**: Free. All data is CC0 (public domain).
-- **BPM data**: Yes! Low-level data includes BPM, beat positions, rhythm descriptors. Indexed by MusicBrainz Recording ID (MBID).
-- **Data dumps available**: Lowlevel (589GB compressed), Highlevel (39GB), Feature CSV (3GB), Sample (2GB).
-- **Rate limits**: Not documented for the API (may be gone entirely).
-- **Accuracy**: Audio-analyzed BPM data from Essentia. Multiple BPM metrics per recording (mean, median, peaks).
-- **Coverage**: Significant but frozen at 2022 data. No tracks released after 2022 will have data.
-- **Integration complexity**: Could use the API (while it lasts) or download the 3GB feature CSV dump and build a local lookup table.
-- **Limitations**: Frozen dataset. Website may go offline at any time. No new music coverage.
-- **Verdict**: The 3GB feature CSV dump (CC0 licensed) could be downloaded and used as a local BPM lookup cache. This would give us verified BPM for millions of recordings at zero API cost. However, it only covers music released before 2022. Worth considering as a supplementary source.
+### 3b. Audio Analysis Summary (Open Source)
+
+See Section 5 for detailed coverage of librosa, Essentia, madmom, aubio, and Tempo-CNN.
+
+**Key insight**: Audio analysis tools are excellent for *verifying* BPM but cannot help us *discover* tracks by BPM. They complement BPM databases rather than replacing them.
 
 ---
 
-## 4. Streaming Platform APIs
+## 4. Music Discovery & Streaming APIs
 
-### 4a. Spotify Web API
+### 4a. Spotify Web API (Post-Deprecation)
 
-- **Status**: Audio Features endpoint deprecated November 27, 2024. Returns 403 for new applications. Only apps with pre-existing quota extensions are unaffected.
-- **What still works**: Search, playback control, playlist creation/management, user library, track metadata (title, artist, album, duration, popularity). These are still critical for our Spotify integration.
-- **What does not work**: `GET /audio-features/{id}` (BPM, energy, danceability, etc.), `GET /audio-analysis/{id}`, `GET /recommendations`.
-- **Why deprecated**: Spotify stated concerns about developers training AI models on the data.
-- **Verdict**: Cannot be used for BPM data. Still essential for search, playback, and playlist export.
+- **Status as of Feb 2026**: Audio Features and Audio Analysis endpoints return 403 for all new apps. Only apps with extended access granted before November 27, 2024 retain access. February 2026 migration guide further tightened restrictions.
+- **BPM Available**: Only for grandfathered apps
+- **Our Status**: We have Spotify credentials for playlist creation and track search, but NOT grandfathered for Audio Features
+- **What Still Works**: Search, playback, playlist management, track metadata (title, artist, album, popularity, duration)
+- **What Does NOT Work**: `GET /audio-features/{id}`, `GET /audio-analysis/{id}`, `GET /recommendations`
+- **Why Deprecated**: Spotify stated concerns about developers scraping data and training AI models
+- **Verdict**: Dead for BPM. Still essential for playlist creation, track search, and URI resolution.
 
 ### 4b. Deezer API
 
-- **URL**: https://developers.deezer.com/api
+- **URL**: https://developers.deezer.com
 - **Availability**: Active. Free "Simple API" with no authentication required for basic access.
-- **Cost**: Free.
-- **Rate limits**: Quota-based (exact limits not publicly documented). Returns HTTP 429 when exceeded.
-- **BPM data**: YES. The `/track/{id}` endpoint returns a `bpm` field (float). Not returned in album track listings -- requires individual track requests.
-- **BPM search**: The advanced search endpoint supports `bpm_min` and `bpm_max` parameters. Example: `/search?q=bpm_min:"120" bpm_max:"145"`.
-- **Coverage**: 90M+ tracks.
-- **Integration complexity**: LOW. Simple REST API. No auth required for the Simple API. Python client available (`deezer-python`).
-- **Limitations**: BPM field may not be populated for all tracks. Cannot filter by genre AND BPM simultaneously in advanced search (need to combine with other search terms). No energy/mood data.
-- **Verdict**: STRONG CANDIDATE. Free, no auth required, has BPM search with min/max range, and a massive catalog. The lack of genre filtering is a limitation but can be worked around by including genre terms in the search query. Should be prioritized for implementation.
+- **Cost**: Free
+- **BPM Data**: YES. The `/track/{id}` endpoint returns a `bpm` field (float). Not returned in album track listings -- requires individual track requests.
+- **BPM Search**: The advanced search endpoint supports `bpm_min` and `bpm_max` parameters. Example: `/search?q=bpm_min:"120" bpm_max:"145"`
+- **Rate Limits**: ~50 requests per 5 seconds (10 req/s). Returns HTTP 429 when exceeded.
+- **Coverage**: 90M+ tracks
+- **Integration Complexity**: LOW. Simple REST API. No auth required for Simple API. Python client available (`deezer-python`).
+- **Additional Data**: 30-second preview URLs (useful for non-Spotify playback)
+- **Limitations**:
+  - BPM field may not be populated for all tracks (empty for less popular tracks)
+  - Cannot filter by genre AND BPM simultaneously in advanced search (need to combine genre terms in query string)
+  - No energy/mood data
+  - Rate limited to ~10 req/s
+- **Integration Patterns**:
+  - **Discovery**: Search by BPM range directly via advanced search
+  - **Verification**: Claude suggests songs -> look up each on Deezer -> get verified BPM -> filter/score
+- **Verdict**: STRONG CANDIDATE. Free, no auth required, has BPM range search, massive catalog. Should be our next integration priority.
 
-### 4c. Apple Music API
+### 4c. Apple Music API (MusicKit)
 
 - **URL**: https://developer.apple.com/documentation/applemusicapi
-- **Availability**: Active. Requires Apple Developer account ($99/year).
-- **Cost**: $99/year Apple Developer membership.
-- **BPM data**: NOT available through the Apple Music API Song object. The platform tracks tempo internally for algorithmic recommendations but does not expose it.
-- **Workarounds**: The `MediaPlayer` framework has a `beatsPerMinute` property for local library items, but this only works on-device and only for the user's own library.
-- **Verdict**: Not viable for BPM data. Could be used for Apple Music playback integration (separate concern).
+- **BPM Available**: No. The Song object in the public Apple Music API does not include BPM/tempo.
+- **Restricted Access**: Advanced playback features (including real-time tempo change) exist only for approved DJ app partners: Algoriddim djay, Serato DJ Pro, rekordbox, Engine DJ.
+- **What's Available Publicly**: Search, catalog browsing, playlist management, album art, editorial content
+- **Cost**: Free with Apple Developer account ($99/year for the developer program)
+- **Verdict**: No BPM data via public API. Per our go-live plan, Apple Music is a "fast follow" for playback integration, but BPM data will come from other sources.
 
 ### 4d. Tidal Developer API
 
 - **URL**: https://developer.tidal.com
-- **Availability**: Active developer portal.
-- **BPM data**: API responses appear to include BPM values in track metadata based on documentation examples (142 BPM, 150 BPM, 92 BPM shown).
-- **Cost**: Free developer access; specifics unclear.
-- **Integration complexity**: Medium. OAuth2 authentication required.
-- **Coverage**: 100M+ tracks.
-- **Limitations**: Tidal has a smaller user base than Spotify/Apple Music. Developer API documentation is less mature. Would need to verify BPM field availability and coverage.
-- **Verdict**: Worth investigating further. If BPM data is reliably available, this could be a supplementary source. Lower priority than Deezer due to smaller user base and less documentation.
+- **BPM Available**: Yes -- the Tidal API returns BPM, key, and key scale on track objects based on documentation examples
+- **Cost**: Free developer access (registration required)
+- **Auth**: OAuth2 required
+- **Coverage**: 100M+ tracks
+- **Features**: High-fidelity streaming, exclusive content, detailed track metadata including BPM
+- **Limitations**:
+  - Smaller user base than Spotify/Apple Music (especially in US market)
+  - Developer API documentation is less mature
+  - Cannot search BY BPM (only get BPM for a known track)
+  - Would need to verify BPM field coverage across catalog
+- **Integration Pattern**: Similar to Deezer verification -- look up Claude-suggested tracks on Tidal to get verified BPM
+- **Verdict**: Worth investigating as a supplementary BPM verification source alongside Deezer. Lower priority given smaller user base and less documentation.
 
-### 4e. iTunes Search API
+### 4e. YouTube Music
+
+- **Official API**: YouTube Data API v3 -- no BPM/tempo data
+- **Unofficial**: ytmusicapi (Python) -- no BPM/tempo data
+- **Daily Quota**: 10,000 units default (different operations cost different amounts)
+- **Verdict**: Not useful for BPM. Could be a future playback source (free tier via YouTube).
+
+### 4f. iTunes Search API
 
 - **URL**: https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI
-- **Availability**: Active. No authentication required.
-- **Cost**: Free.
-- **BPM data**: No BPM/tempo field in search results.
-- **Verdict**: Not useful for BPM data. Could be used for track metadata lookup.
+- **BPM Available**: No
+- **Cost**: Free, no auth required
+- **Verdict**: Not useful for BPM data. Could supplement track metadata lookups.
+
+### 4g. Last.fm API
+
+- **URL**: https://www.last.fm/api
+- **BPM Available**: No native BPM field
+- **Cost**: Free (API key required)
+- **Useful For**: Genre tags, similar artist discovery, popularity/scrobbling data, user listening habits
+- **Verdict**: No BPM data. Potentially useful as supplementary metadata for genre tags and artist similarity, but not a music source for Crank.
+
+### 4h. Musixmatch API
+
+- **BPM Available**: No -- focused on lyrics and lyric metadata
+- **Verdict**: Not useful for BPM. Could be interesting for lyric-based features (motivational vs. mellow) in the future.
 
 ---
 
-## 5. AI-Based Approaches
+## 5. Open Source Libraries & Datasets
 
-### 5a. Claude Music Suggestions (already integrated)
+### 5a. librosa (Python)
 
-- **Implementation**: `apps/api/music_sources/claude_suggestions.py`
-- **How it works**: Prompts Claude to suggest songs matching a BPM range and genre. Claude returns song names, artists, and estimated BPMs from its training knowledge.
-- **Accuracy**: BPM estimates are unverified and may be inaccurate. Claude may hallucinate tracks that do not exist.
-- **Cost**: Per-token Anthropic API costs. Roughly $0.001-0.01 per request depending on model.
-- **Latency**: 1-3 seconds per request.
-- **Verdict**: Good fallback. Should be used as last resort and ideally cross-verified with a BPM database.
+- **URL**: https://librosa.org
+- **What It Does**: Audio analysis library. `librosa.beat.beat_track()` detects tempo from audio files.
+- **Accuracy**: Within +/-1 BPM for most commercial music with consistent tempos. 60+ seconds of audio needed for reliable detection. Less accurate for songs with tempo changes or ambiguous rhythms.
+- **Algorithm**: Dynamic programming beat tracker: (1) measure onset strength, (2) estimate tempo from onset correlation, (3) pick peaks consistent with estimated tempo. Uses pseudo-log-normal prior over likely tempi.
+- **Cost**: Free, open source (ISC license -- permissive)
+- **Performance**: Slow. Benchmarked at ~2 hours on the same dataset Essentia completed in 4 minutes.
+- **Requirements**: Audio file input (WAV, MP3, etc.). Python 3.8+, numpy, scipy, soundfile.
+- **Limitations**:
+  - Requires actual audio files (cannot analyze from a song title alone)
+  - Processing takes seconds per track
+  - Less accurate for electronic music with steady beats (can halve/double tempo)
+  - Cannot be used as a "search by BPM" source without pre-building a database
+- **Use Case for Crank**: Could analyze Deezer 30-second previews to verify BPM. ISC license is clean for commercial use.
+- **Verdict**: Good for offline BPM verification. Permissive license. Not practical for real-time discovery.
 
-### 5b. LLM + BPM Database Hybrid (recommended approach)
+### 5b. Essentia (Python/C++)
 
-Recent research (ISMIR 2025, RecSys 2025) shows LLMs are effective at music recommendation when grounded in catalog data. The recommended architecture:
+- **URL**: https://essentia.upf.edu
+- **What It Does**: Comprehensive music information retrieval toolkit from Universitat Pompeu Fabra (Barcelona).
+- **BPM Detection**:
+  - `RhythmExtractor2013`: Traditional algorithm. Two modes: multifeature (slower, more accurate) and degara (faster).
+  - `TempoCNN`: Deep learning CNN model. Processes 12-second audio slices with 6-second overlap. Outputs global BPM + local per-segment estimates with confidence scores. Range: 30-286 BPM. Three model sizes available.
+- **Accuracy**: TempoCNN generally considered more accurate than traditional methods, especially for diverse genres. Specific benchmark numbers not publicly available but research basis is solid (published at ISMIR by Hendrik Schreiber and Meinard Mueller).
+- **Performance**: Fast (~4 minutes on a benchmark dataset where librosa took ~2 hours).
+- **Cost**: Free, open source (AGPLv3 -- copyleft)
+- **Requirements**: Audio file input. C++ backend with Python bindings. More complex installation than librosa.
+- **Additional Features**: Key detection, chord estimation, mood classification, loudness analysis
+- **License Concern**: AGPLv3 requires sharing source code of any networked application that uses it. Since Crank's backend is a web service, using Essentia would trigger this requirement. Our code is open source already, but this is worth noting.
+- **WebAssembly**: `essentia.js` runs in the browser. Could theoretically analyze audio client-side.
+- **Verdict**: Best-in-class for BPM detection accuracy and speed. AGPLv3 license is acceptable since our code is public. Best for building a pre-computed BPM database or verification pipeline.
 
-1. **LLM as query interpreter**: Use Claude to understand the workout context and suggest track characteristics (not specific tracks).
-2. **BPM database as catalog**: Use GetSongBPM or Deezer to find actual tracks matching those characteristics.
-3. **LLM as re-ranker**: Optionally use Claude to re-rank results for workout flow and energy progression.
+### 5c. madmom (Python)
 
-This avoids the hallucination problem while leveraging Claude's understanding of music/workout context.
+- **URL**: https://github.com/CPJKU/madmom
+- **What It Does**: State-of-the-art beat tracking using RNNs with dynamic Bayesian network (DBN) approximated by HMM. Multi-model setup with genre-specific RNNs.
+- **Accuracy**: Very high -- considered the top for beat tracking specifically. May round BPM to nearest integer.
+- **Performance**: Medium (faster than librosa, slower than Essentia)
+- **Cost**: Free, open source (BSD license)
+- **Verdict**: Best accuracy for beat tracking specifically, but requires audio access. BSD license is clean.
 
-**Key research findings**:
-- Chain-of-Thought prompting improves recommendation quality ("Generate a 30-minute workout playlist by: (1) selecting high-energy tracks with BPM 140-160, (2) filtering for motivational lyrics, (3) ordering by increasing intensity...")
-- LLMs can parse open-vocabulary constraints (valence, arousal, key/mode, content filtering)
-- Accuracy improves when LLMs are grounded in real catalog data rather than generating from memory
+### 5d. aubio (Python/C)
 
-- **Verdict**: Our current architecture already follows this pattern (Claude parses workout, music source finds tracks, scorer ranks). The improvement would be having Claude also suggest optimal BPM/energy targets per phase rather than relying solely on the static BPM mapping table.
+- **URL**: https://aubio.org
+- **What It Does**: Real-time audio analysis (onset detection, beat tracking, tempo estimation).
+- **Accuracy**: Good. Designed for real-time use.
+- **Performance**: Very fast -- designed for real-time beat detection.
+- **Cost**: Free, open source (GPLv3)
+- **Verdict**: Good for real-time scenarios. Less accurate than madmom or Essentia for offline BPM estimation.
 
-### 5c. Tempo-CNN / ML-Based Audio Analysis
+### 5e. Tempo-CNN
 
-- **See Section 2e** above. Deep learning models that estimate BPM from audio spectrograms.
-- **Verdict**: Useful for verification, not discovery.
+- **URL**: https://github.com/hendriks73/tempo-cnn (also integrated into Essentia as `TempoCNN`)
+- **What It Does**: Deep learning approach using CNNs on mel spectrograms. Supports local tempo estimation (tempo changes within a track). Has `--interpolate` flag for sub-integer BPM precision.
+- **Cost**: Free, open source (MIT license)
+- **Verdict**: Interesting for advanced tempo analysis. Best used through Essentia's integration.
 
----
+### 5f. Realtime BPM Analyzer (JavaScript)
 
-## 6. Pre-Built Workout Music Services
+- **URL**: https://github.com/dlepaux/realtime-bpm-analyzer
+- **What It Does**: WebAudioAPI-based library for real-time BPM detection from files, audio nodes, streams, or microphone input.
+- **Verdict**: Could be useful for a future browser-based feature where users tap or play music, but not for our server-side BPM discovery use case.
 
-### 6a. Feed.fm
+### Audio Analysis Libraries Summary
 
-- **URL**: https://www.feed.fm
-- **What it does**: End-to-end music licensing + API for fitness apps. Curated BPM/genre/workout-specific stations. Full music licensing included.
-- **Cost**: Custom pricing based on song plays. Must speak with a "music specialist."
-- **Integration**: SDKs for iOS, Android, JavaScript. Well-documented.
-- **Stats**: 3.2x more time spent in-app for users who use integrated workout music.
-- **Limitations**: Black box -- you do not control the music selection algorithm. Likely expensive for a free product. You cannot use your own music sources. Licensing-oriented (they handle royalties).
-- **Verdict**: Wrong fit. We want to control the curation algorithm and let users play via Spotify/Apple Music. Feed.fm is for apps that want to embed a licensed music player.
+| Library | Accuracy | Speed | License | Best For |
+|---------|----------|-------|---------|----------|
+| **Essentia** | High | Fast | AGPLv3 | Production BPM verification, pre-computed databases |
+| **madmom** | Very High | Medium | BSD | Highest-accuracy beat tracking |
+| **librosa** | Good | Slow | ISC | Prototyping, simple integration |
+| **aubio** | Good | Very Fast | GPLv3 | Real-time analysis |
+| **Tempo-CNN** | High | Medium | MIT | Local tempo / tempo changes |
 
-### 6b. PulseMix (Hyperhuman)
+**Key insight**: Audio analysis libraries are excellent for *verifying* BPM but cannot help us *discover* tracks. They require audio file input. They complement BPM database APIs rather than replacing them.
 
-- **URL**: https://blog.hyperhuman.cc/pulsemix-smart-workout-music/
-- **What it does**: BPM-aware music for fitness video content. Auto-matches music to workout categories (HIIT 140-180 BPM, Strength 90-120 BPM, Yoga 60-90 BPM, etc.).
-- **Cost**: Part of Hyperhuman platform pricing.
-- **Integration**: Available via Hyperhuman Content API. Returns playlist links for Spotify, Apple Music, YouTube, Amazon Music.
-- **Limitations**: Designed for video content creators, not end-user apps. Royalty-free music library, not popular tracks.
-- **Verdict**: Interesting BPM-to-workout mapping reference, but not a data source we can use. Their BPM ranges per workout type are a useful validation of our own mapping.
+### 5g. Datasets
 
-### 6c. RockMyRun
+#### AcousticBrainz Data Dump
 
-- **URL**: https://www.rockmyrun.com
-- **What it does**: Consumer app for workout music. Stations by BPM, genre, activity. Adjusts tempo to match step cadence.
-- **Cost**: Consumer subscription app.
-- **Integration**: No public API.
-- **Verdict**: Competitor, not a data source.
+- **URL**: https://acousticbrainz.org/download
+- **Status**: Project ended in 2022. Website and API still available as of early 2026 but on borrowed time. No new data being collected.
+- **Data**: BPM, BPM histogram peaks, danceability, onset rate, key, mode, loudness -- all derived from Essentia analysis. Indexed by MusicBrainz Recording ID (MBID).
+- **License**: CC0 (public domain) -- no attribution required
+- **Size**: Feature CSV ~3GB; full low-level dump ~589GB compressed; high-level ~39GB
+- **Integration Pattern**: Download dump -> extract MBID-to-BPM mappings -> use MusicBrainz API to resolve track names to MBIDs -> look up BPM locally
+- **Limitations**: Frozen at 2022 data. Only covers tracks users submitted for analysis. Website may go offline without notice.
+- **Verdict**: Best free offline BPM data source. The 3GB feature CSV is manageable. Worth downloading NOW before the site goes offline. CC0 license means zero legal friction.
 
-### 6d. PowerMusicNow
-
-- **What it does**: Group fitness music player with BPM adjustment.
-- **Integration**: No public API.
-- **Verdict**: Not a data source.
-
----
-
-## 7. Community BPM Databases
-
-### 7a. AcousticBrainz Data Dumps (CC0)
-
-- **See Section 3b**. 3GB feature CSV with BPM data for millions of recordings.
-- **License**: CC0 (public domain). No attribution required.
-- **Verdict**: Best free offline BPM data source. Frozen at 2022.
-
-### 7b. Million Song Dataset
+#### Million Song Dataset
 
 - **URL**: http://millionsongdataset.com
-- **Availability**: Free. 280GB full dataset, smaller subsets available on Kaggle.
-- **Coverage**: 1 million tracks. Includes tempo, loudness, key, time signature.
-- **Limitations**: Dataset from ~2011. Only covers tracks available at that time. 280GB is impractical to host.
-- **Accuracy**: Tempo data was computed by The Echo Nest (later acquired by Spotify).
-- **Verdict**: Too old and too large. AcousticBrainz feature dump is a better option for cached BPM lookups.
+- **Size**: 1 million songs. 280GB full dataset, 1.8GB for 10K subset.
+- **Data**: Tempo, loudness, key, time signature, duration (from The Echo Nest analysis)
+- **Cost**: Free (NSF-funded research dataset)
+- **Limitations**: From ~2011, no new songs. 280GB is impractical to host. Echo Nest IDs need cross-referencing.
+- **Verdict**: Too old for a music app targeting current songs. The 10K subset could supplement mock data for testing.
 
-### 7c. GiantSteps Tempo Dataset
+#### GiantSteps Tempo Dataset
 
 - **URL**: https://github.com/GiantSteps/giantsteps-tempo-dataset
-- **What it is**: Annotated BPM data for electronic dance music tracks.
-- **Coverage**: Small dataset (~600 tracks). EDM-focused.
-- **Verdict**: Too small and genre-specific. Useful only for benchmarking BPM detection algorithms.
-
-### 7d. SongData.io
-
-- **URL**: https://songdata.io
-- **What it does**: BPM and key lookup for songs.
-- **API**: No public developer API found.
-- **Verdict**: Not viable as a programmatic source.
+- **Focus**: Human-annotated BPM for ~600 electronic dance music tracks
+- **Verdict**: Too small and genre-specific for production. Useful for benchmarking BPM detection accuracy.
 
 ---
 
-## 8. Hybrid Approaches (Recommendations)
+## 6. Workout Music Services
 
-Based on this research, here are the recommended strategies for our project, ordered by implementation priority.
+None of these offer developer APIs, but they validate the BPM-to-workout model and provide useful BPM range reference data.
 
-### Strategy A: Deezer API as New Primary Source (HIGH PRIORITY)
+### 6a. jog.fm
 
-**Why**: Free, no auth required for Simple API, has BPM search with `bpm_min`/`bpm_max`, and 90M+ track catalog. This is the single best replacement for our needs.
+- **URL**: https://jog.fm
+- **What it Does**: Recommends workout songs matched to running pace/BPM. Search by speed, BPM, or both. Genre-filtered. Crowd-sourced recommendations.
+- **API**: No public API
+- **Verdict**: Validates our concept. Their BPM-to-pace mapping is a useful reference.
 
-**Implementation**:
-```python
-# New file: apps/api/music_sources/deezer.py
-# Search: GET https://api.deezer.com/search?q=bpm_min:"130" bpm_max:"145" rock
-# Track detail: GET https://api.deezer.com/track/{id} -> includes bpm field
+### 6b. RockMyRun
+
+- **URL**: https://www.rockmyrun.com
+- **What it Does**: DJ-curated workout mixes. Body-Driven Music technology syncs to steps or heart rate. Manual BPM adjustment available.
+- **Cost**: Subscription ($4.99/month or $35.99/year)
+- **API**: No public API
+- **Verdict**: Competitor with different approach (DJ-curated mixes vs. our AI-generated playlists). No API.
+
+### 6c. FIT Radio
+
+- **What it Does**: Workout music sorted by BPM, DJ, and activity type. 150 new tracks monthly.
+- **API**: No public API
+- **Verdict**: Competitor. No API access.
+
+### 6d. Feed.fm
+
+- **URL**: https://www.feed.fm
+- **What it Does**: End-to-end music licensing + API for fitness apps. Curated BPM/genre/workout-specific stations. Full music licensing included. SDKs for iOS, Android, JavaScript.
+- **Cost**: Custom pricing based on song plays
+- **Verdict**: Wrong fit. We want to control the curation algorithm and let users play via Spotify. Feed.fm is for apps that want to embed a fully licensed music player.
+
+### 6e. PulseMix (Hyperhuman)
+
+- **URL**: https://blog.hyperhuman.cc/pulsemix-smart-workout-music/
+- **What it Does**: BPM-aware music for fitness video content. Auto-matches music to workout categories.
+- **BPM Ranges**: HIIT 140-180, Strength 90-120, Yoga 60-90, Cardio 130-160
+- **Verdict**: Useful BPM range reference. Not a data source we can use (designed for video content creators, royalty-free music).
+
+### Key Takeaway
+
+None of these services offer APIs. They are consumer products. However, they validate that BPM-matched workout music is a proven market. Our differentiator is AI-powered workout parsing -- none of them parse workout text or photos to automatically determine intensity phases.
+
+---
+
+## 7. Community & DJ Databases
+
+### 7a. BPMDatabase.com
+
+- **URL**: https://www.bpmdatabase.com
+- **Size**: 100,000+ user-contributed music profiles
+- **How it Works**: Community-submitted BPM data from record labels, personal counting, or DJ software. Built originally as a school project in 2003 (LAMP stack), now Django.
+- **API**: No public API
+- **Data Quality**: Variable -- user-submitted, not audio-verified
+- **Verdict**: Small, no API, unverified data. Not viable.
+
+### 7b. AudioKeychain
+
+- **URL**: https://www.audiokeychain.com
+- **What it Does**: Upload tracks to find BPM and key. Manually validated by team before entering public database.
+- **API**: No official API (third-party bash client exists on GitHub)
+- **Data Quality**: High (human-validated)
+- **Verdict**: No API. Manual validation means small scale.
+
+### 7c. MusicBrainz
+
+- **URL**: https://musicbrainz.org
+- **Coverage**: 2.6M artists, 4.7M releases, 35.2M recordings
+- **BPM Data**: MusicBrainz itself does NOT store BPM data. It stores metadata (artist, release, recording IDs, ISRCs).
+- **Cost**: Free. Open data (CC license). 1 request/second rate limit.
+- **Usefulness**: Canonical track identity resolver. MBIDs can cross-reference to AcousticBrainz BPM data, and ISRCs can cross-reference to Spotify/Deezer/Tidal.
+- **Verdict**: Not a BPM source, but extremely useful as a cross-referencing layer to link tracks across multiple sources.
+
+---
+
+## 8. AI-Assisted Approaches
+
+### 8a. Current Approach: Claude as Music Source
+
+Our `ClaudeMusicSource` (`apps/api/music_sources/claude_suggestions.py`) prompts Claude to suggest real songs within a BPM range for a given genre. It requests JSON output with title, artist, BPM, energy, and duration. Results are marked `verified_bpm=False`.
+
+**Strengths:**
+- Most flexible source: understands workout context, mood, genre nuance, "vibe"
+- Can incorporate user preferences, exclude/boost artists, favor specific moods
+- No external API dependency beyond Anthropic
+- Fast iteration on prompt engineering
+- Can request workout-appropriate songs (high energy, motivational lyrics)
+- Handles genre variety well (rock, electronic, hip-hop, pop, country, metal)
+- Unlimited "catalog" -- any song Claude knows about
+- Cost is modest (~$0.003-0.01 per Haiku call)
+
+**Weaknesses:**
+- BPM values are estimates from training data, not measured from audio
+- Can hallucinate songs that don't exist (less common with Claude but still possible)
+- BPM estimates can be off by 10-20 BPM for less well-known songs
+- May suggest the same songs repeatedly across requests (needs temperature tuning or explicit diversity instructions)
+- No guarantee the suggested BPM matches the actual track tempo
+- Knowledge cutoff means very recent releases may be unknown
+
+**Accuracy Assessment (from research):**
+- Academic research on LLMs for music recommendation (ISMIR 2025, arXiv:2511.16478) shows LLMs are effective at bridging informal user requests with formal catalog metadata
+- Claude outperformed ChatGPT and Gemini on music theory tasks, especially with structured encoding formats
+- However, LLMs introduce challenges: hallucinations, knowledge cutoffs, non-determinism, opaque training data
+- Multimodal LLMs "fail to listen reliably" -- they reason about music linguistically (from text training data mentioning BPMs), not from audio analysis
+- **For well-known songs** (top 1000 per genre): Claude's BPM estimates are typically within +/-5 BPM
+- **For moderately known songs**: +/-10-15 BPM
+- **For obscure tracks**: potentially 20+ BPM off or hallucinated entirely
+
+### 8b. Hybrid: Claude + BPM Verification (Recommended)
+
+The most promising architecture combines Claude's flexibility with verified BPM data:
+
+```
+Claude suggests songs (fast, flexible, genre-aware, workout-context-aware)
+    |
+    v
+Deezer / GetSongBPM verifies BPM + confirms song exists
+    |
+    v
+If verified BPM is within range: keep (verified_bpm=True)
+If verified BPM is out of range: discard
+If song not found in verification API: keep with original estimate (verified_bpm=False)
+    |
+    v
+Spotify resolves playback URI
 ```
 
-**Effort**: Low (half day). Follows our existing `MusicSource` ABC pattern. No API key needed.
+**Benefits:**
+- Claude handles the creative question: "what songs would work for this high-intensity CrossFit phase?"
+- Verification layer catches hallucinated songs and corrects BPM
+- Spotify handles playback
+- Each service does what it's best at
+- Both Claude and verification APIs are free or low-cost
 
-**Risk**: BPM field may not be populated for all tracks. Rate limits are undocumented. Deezer's user base is smaller than Spotify's in the US market.
+**Cost per request:** One Claude API call (~$0.005) + N verification lookups (free via Deezer/GetSongBPM)
 
-### Strategy B: GetSongBPM as Verified Source (KEEP, already done)
+### 8c. Enhanced Claude Prompting
 
-Keep the existing GetSongBPM integration as a reliable BPM-verified source. It has known BPM accuracy and a straightforward API.
+Research suggests several prompt improvements:
+- **Chain-of-thought prompting**: "Generate a 30-minute workout playlist by: (1) selecting high-energy tracks with BPM 140-160, (2) filtering for motivational lyrics, (3) ordering by increasing intensity..."
+- **Grounding in catalog data**: Instruct Claude to only suggest songs it is highly confident exist
+- **Few-shot examples**: Include known songs with verified BPMs in the prompt
+- **Confidence scoring**: Ask Claude to rate its confidence in each BPM estimate (1-5)
+- **Diversity instructions**: "Do not suggest more than 2 songs by the same artist"
 
-**Action**: Complete the sign-up process and add the backlink attribution.
+### 8d. Future: Per-Segment Energy Analysis
 
-### Strategy C: Claude + Database Cross-Verification (MEDIUM PRIORITY)
+Cyanite's approach of analyzing energy dynamics per 15-second segment represents the ideal future. Instead of assuming a song has a single energy level, we could:
+1. Analyze a song's energy profile over time
+2. Match songs whose energy curve aligns with the workout phase structure
+3. e.g., a song that builds from low to high energy at 2:00 could be placed right before a sprint interval
 
-Enhance the Claude music source to cross-verify its suggestions against a BPM database:
-
-1. Claude suggests tracks with estimated BPMs for a workout phase.
-2. For each suggestion, look up the actual BPM via GetSongBPM or Deezer.
-3. If the real BPM matches (within +/- 5 BPM), keep the track. Otherwise, discard.
-
-This gives us Claude's excellent music taste with verified BPM data.
-
-**Effort**: Medium (1 day). Requires composing two existing sources.
-
-### Strategy D: AcousticBrainz Offline Cache (LOW PRIORITY, future)
-
-Download the 3GB AcousticBrainz feature CSV (CC0 licensed) and build a local BPM lookup table:
-
-1. Extract MBID -> BPM mappings from the CSV.
-2. Use MusicBrainz API (free, 1 req/sec) to resolve track names to MBIDs.
-3. Look up BPM from our local cache.
-
-**Effort**: Medium (1-2 days for ETL pipeline). Free, no rate limits on lookups.
-
-**Risk**: Frozen at 2022 data. Website may go offline, so download the dump now.
-
-### Strategy E: Essentia BPM Verification (LOW PRIORITY, future)
-
-If we ever have access to audio previews (e.g., Spotify 30-second previews, Deezer previews), we could verify BPM claims using Essentia audio analysis:
-
-1. Fetch a 30-second preview URL from Spotify/Deezer.
-2. Run `RhythmExtractor2013` on the audio.
-3. Compare detected BPM with the claimed BPM.
-4. Flag discrepancies.
-
-**Effort**: High (2-3 days including audio pipeline). Adds significant infrastructure complexity.
-
-**Risk**: Preview URLs may not always be available. Audio processing adds latency.
+This is aspirational (requires Cyanite-level investment) but represents where the technology is heading.
 
 ---
 
-## Decision Matrix
+## 9. Comparative Analysis
 
-| Source | BPM Search | Free | No Auth | Catalog Size | Accuracy | Effort | Recommendation |
-|--------|-----------|------|---------|-------------|----------|--------|----------------|
-| **Deezer API** | Yes (bpm_min/max) | Yes | Yes | 90M+ | Good | Low | **Implement now** |
-| **GetSongBPM** | Yes (single BPM) | Yes | Key required | Millions | Good | Done | **Keep** |
-| **Claude suggestions** | N/A (generates) | Per-token | Key required | Unlimited | Low | Done | **Keep as fallback** |
-| Soundcharts | Yes | $250/mo min | Key required | Millions | High | Medium | Too expensive |
-| Tunebat/Songstats | Maybe | Unknown | Key required | 70M+ | Good | Medium | Sales-gated |
-| Cyanite | Analysis only | Custom | Key required | Upload only | Very High | High | Overkill |
-| Tidal | Maybe | Free? | OAuth | 100M+ | Unknown | Medium | Investigate later |
-| AcousticBrainz dump | Offline lookup | Free (CC0) | None | Millions | High | Medium | Good supplement |
-| Essentia | Analysis only | Free (AGPL) | None | N/A | Very High | High | Verification only |
-| Feed.fm | Curated only | Custom | SDK | Licensed | N/A | Low | Wrong fit |
+### All BPM Data Sources Ranked
+
+| Source | BPM Verified | Search by BPM | Cost | Catalog Size | Energy Data | Auth Needed | Integration Effort |
+|--------|-------------|---------------|------|-------------|-------------|-------------|-------------------|
+| **Deezer API** | Yes | Yes (min/max) | Free | 90M+ | No | No | Low |
+| **GetSongBPM** | Yes | Yes (single BPM) | Free (backlink) | 6M+ | No | API key | Done |
+| **Claude AI** | No | Yes (generates) | ~$0.005/req | Unlimited | Yes (estimated) | API key | Done |
+| **Tidal API** | Yes | No (lookup only) | Free | 100M+ | No | OAuth2 | Medium |
+| **AcousticBrainz dump** | Yes | Yes (local DB) | Free (CC0) | Millions (pre-2022) | No | None | Medium-High |
+| Soundcharts | Yes | No (enrich only) | $250+/mo | Millions | Yes (full set) | API key | Medium |
+| Tunebat/Songstats | Yes | Unknown | Enterprise | 70M+ | Yes | Sales-gated | Medium |
+| Cyanite | Yes | No (analyze) | 290+ EUR/mo | 45M+ tagged | Yes (per-segment) | Sales-gated | High |
+| Essentia/librosa | Yes | N/A (offline) | Free (OSS) | N/A | No | None | High |
+| Last.fm | No | No | Free | N/A | No | API key | Low |
+| Apple Music | No | No | $99/yr dev | Large | No | JWT | Medium |
+
+### Architecture Options
+
+**Option A: Claude-Only (Current Production)**
+```
+Claude suggests -> Spotify resolves
+```
+- Pros: Simple, working now, flexible
+- Cons: Unverified BPM, hallucination risk, may be 10-20 BPM off
+
+**Option B: GetSongBPM Primary + Claude Fallback**
+```
+GetSongBPM searches by BPM -> Spotify resolves
+  (fallback: Claude suggests -> Spotify resolves)
+```
+- Pros: Verified BPM primary, already implemented
+- Cons: No energy data, limited genre filtering, 6M catalog (may miss niche tracks)
+
+**Option C: Deezer Primary + Claude Fallback**
+```
+Deezer searches by BPM range -> Spotify resolves
+  (fallback: Claude suggests -> Spotify resolves)
+```
+- Pros: Verified BPM, 90M+ catalog, free, no auth, BPM range search built-in
+- Cons: No energy data, genre filtering is imprecise
+
+**Option D: Claude + Deezer Verification (RECOMMENDED)**
+```
+Claude suggests songs for workout phase (genre-aware, context-aware)
+    -> Deezer verifies BPM + confirms existence
+        -> Spotify resolves URI for playback
+```
+- Pros: Best of both worlds -- Claude's creative/contextual intelligence + Deezer's verified BPM
+- Cons: More API calls per request, slightly more latency (~1-2s extra)
+
+**Option E: Multi-Source Fallback Chain (RECOMMENDED for production)**
+```
+1. GetSongBPM searches by BPM range (verified, direct search)
+2. + Claude suggests songs (contextual, flexible)
+    -> Deezer verifies Claude suggestions
+3. Merge and deduplicate results
+4. Score and rank (BPM match, energy, diversity, feedback)
+5. Spotify resolves URIs
+```
+- Pros: Most robust, graceful degradation, combines verified and creative sources
+- Cons: Most complex to implement (but each piece is simple)
 
 ---
 
-## Recommended Execution Order
+## 10. Prioritized Recommendations
 
-1. **Now**: Implement Deezer API music source (`apps/api/music_sources/deezer.py`). Free, no auth, BPM range search. Add `MUSIC_SOURCE=deezer` option.
-2. **Now**: Complete GetSongBPM registration and add backlink. Keep as secondary source.
-3. **Soon**: Build Claude + Deezer cross-verification hybrid (Strategy C). Claude suggests, Deezer verifies BPM.
-4. **Later**: Download AcousticBrainz feature dump before the website goes offline. Build offline BPM cache.
-5. **Later**: Investigate Tidal API for BPM data once our core pipeline is stable.
-6. **If needed**: Add Essentia audio analysis for BPM verification of preview clips.
+### Phase 1: Immediate (This Sprint)
+
+#### P0-A: Activate GetSongBPM as Verified Source
+- Already implemented in `apps/api/music_sources/getsongbpm.py`
+- Complete API key registration at https://getsongbpm.com/api
+- Add backlink to web app footer (satisfies their requirement)
+- Test with real API key
+- **Effort**: 2-4 hours (config + backlink + testing)
+- **Impact**: Immediate verified BPM source
+
+#### P0-B: Implement Deezer as New Music Source
+- Create `apps/api/music_sources/deezer.py` implementing `MusicSource` ABC
+- Two modes:
+  - **Discovery mode**: Use advanced search with `bpm_min`/`bpm_max` parameters
+  - **Verification mode**: Look up specific tracks by title/artist, return verified BPM
+- Add `MUSIC_SOURCE=deezer` config option
+- No API key required (Deezer Simple API)
+- **Effort**: 4-6 hours
+- **Impact**: 90M+ track catalog with verified BPM and BPM range search
+
+### Phase 2: Near-Term (Next 2 Weeks)
+
+#### P1-A: Implement Claude + Deezer Verification Hybrid
+- After Claude suggests tracks, verify each via Deezer API
+- If found: use Deezer's BPM (`verified_bpm=True`), confirm song exists
+- If not found: keep Claude's estimate (`verified_bpm=False`), flag as unverified
+- Track verification hit rate (% of Claude suggestions found in Deezer)
+- **Effort**: 4-6 hours
+- **Impact**: Verified BPM on most Claude suggestions
+
+#### P1-B: Implement Multi-Source Fallback Chain
+- GetSongBPM (primary, verified, search by BPM range)
+- Deezer (secondary, verified, search by BPM range)
+- Claude + Deezer verify (tertiary, flexible + verification)
+- Claude only (last resort, unverified)
+- Support `X-Music-Source` header per go-live plan for per-request source selection
+- **Effort**: 4-6 hours
+- **Impact**: Robust, graceful degradation when any single source is unavailable
+
+#### P1-C: Enhance Claude Prompts for Better BPM Accuracy
+- Add few-shot examples with known verified BPMs
+- Include instruction to only suggest songs Claude is highly confident about
+- Add confidence scoring (ask Claude to rate 1-5 for each suggestion)
+- Add temperature variation to reduce repetition
+- Test against Deezer verification to measure actual accuracy
+- **Effort**: 2-3 hours
+- **Impact**: Better unverified BPM accuracy, reduced hallucination
+
+### Phase 3: Medium-Term (Next Month)
+
+#### P2-A: Investigate Tidal API for BPM Verification
+- Register for Tidal developer access
+- Test whether BPM data is reliably present and accurate
+- Add as another verification source alongside Deezer
+- **Effort**: 2-3 hours
+- **Impact**: Additional BPM verification coverage
+
+#### P2-B: Download AcousticBrainz CC0 Data Dump
+- Download the 3GB feature CSV from https://acousticbrainz.org/download ASAP (site may go offline)
+- Extract MBID -> BPM mappings
+- Import into Supabase (indexed by artist + title, MBID)
+- Use as fast local lookup before hitting external APIs
+- **Effort**: 8-12 hours
+- **Impact**: Offline verified BPM for millions of pre-2022 tracks. Zero API cost.
+
+### Phase 4: Long-Term (Next Quarter)
+
+#### P3-A: Evaluate Soundcharts if Revenue Supports It
+- If Crank monetizes, Soundcharts provides the richest audio features (energy, valence, danceability)
+- Contact sales for startup/indie pricing
+- **Decision gate**: Only pursue if monthly revenue exceeds Soundcharts cost
+
+#### P3-B: Build Offline BPM Analysis Pipeline (If Needed)
+- Use librosa (ISC license, cleanest for commercial use) or Essentia (AGPLv3, OK since we're open source)
+- Analyze Deezer 30-second previews for tracks where no BPM data exists
+- Store results in local BPM cache
+- **Decision gate**: Only build if external BPM APIs prove insufficient for coverage
+
+#### P3-C: Apple Music Playback Integration
+- Per go-live plan, Apple Music is a "fast follow" after Spotify
+- Apple Music API has no BPM data, but our BPM data comes from other sources
+- Focus would be on playlist creation and playback for non-Spotify users
 
 ---
 
-## Appendix: BPM Range Reference (Workout Types)
+## Decision Summary
 
-Cross-referencing our BPM mapping with PulseMix's workout categories:
+| Priority | Action | Cost | Effort | Impact |
+|----------|--------|------|--------|--------|
+| **P0** | Activate GetSongBPM (already coded) | Free | 2-4h | Verified BPM, search by BPM |
+| **P0** | Implement Deezer music source | Free | 4-6h | 90M+ catalog, verified BPM, BPM range search |
+| **P1** | Claude + Deezer verification hybrid | Free | 4-6h | Verified BPM on Claude suggestions |
+| **P1** | Multi-source fallback chain | Free | 4-6h | Robustness and reliability |
+| **P1** | Claude prompt improvements | ~$0.005/req | 2-3h | Better accuracy, less hallucination |
+| **P2** | Tidal BPM verification | Free | 2-3h | Additional verification coverage |
+| **P2** | AcousticBrainz local cache | Free | 8-12h | Offline BPM, faster lookups |
+| **P3** | Soundcharts enrichment | $250+/mo | Medium | Rich audio features (energy, mood) |
+| **P3** | Offline audio analysis pipeline | Free (OSS) | High | Self-sufficient BPM detection |
 
-| Workout Type | Our Mapping | PulseMix Mapping | Notes |
-|-------------|-------------|-----------------|-------|
-| Warm-up / Yoga | 100-120 | 60-90 (Yoga) | We run higher; CrossFit warm-ups are more active |
-| Low / Pilates | 120-130 | 80-110 (Pilates) | Similar |
-| Moderate / Strength | 130-145 | 90-120 (Strength) | We run higher; CrossFit moderate is more intense |
-| High / Cardio | 145-160 | 130-160 (Cardio) | Good alignment |
-| Very High / HIIT | 160-175 | 140-180 (HIIT) | Good alignment |
-| Cooldown | 80-100 | 60-90 (Yoga) | Similar |
+### The Recommended Production Architecture
+
+```
+User inputs workout text or photo
+    |
+    v
+Claude parses workout into phases (warm-up, moderate, high intensity, etc.)
+    |
+    v
+For each phase, determine BPM range from intensity mapping
+    |
+    v
+[Parallel discovery]
+  GetSongBPM: search by target BPM (verified)
+  Deezer: search by BPM range (verified)
+  Claude: suggest songs for phase context (unverified)
+    |                                        |
+    |                           Deezer: verify BPM + existence
+    |                                        |
+    v                                        v
+Merge all candidates, deduplicate by (artist, title)
+    |
+    v
+Scorer ranks: BPM match (50pts) + energy (30pts) + diversity (20pts) + feedback boost (15pts)
+    |
+    v
+Composer assembles final playlist (max 30 BPM jump between tracks, duration tolerance +/-2min)
+    |
+    v
+Spotify resolves URIs for playback
+```
+
+This gives us:
+- **Verified BPM** from GetSongBPM (discovery) and Deezer (discovery + verification)
+- **Flexible, context-aware discovery** from Claude (genre, mood, workout context)
+- **Graceful degradation** when any single source is unavailable
+- **Zero cost** for BPM data (all free APIs)
+- **Existing playback** via Spotify (future: Apple Music, YouTube)
+
+---
+
+## Appendix A: BPM Range Cross-Reference
+
+Our BPM mapping compared to workout music industry standards:
+
+| Phase | Our Mapping | PulseMix (Hyperhuman) | jog.fm Range | Notes |
+|-------|-------------|----------------------|-------------|-------|
+| Warm-up | 100-120 | 60-90 (Yoga) | 100-120 | Ours aligns with CrossFit warm-up (more active than yoga) |
+| Low | 120-130 | 80-110 (Pilates) | 120-140 | Reasonable |
+| Moderate | 130-145 | 90-120 (Strength) | 140-160 | We run higher than PulseMix; CrossFit moderate is intense |
+| High | 145-160 | 130-160 (Cardio) | 150-170 | Good alignment |
+| Very High | 160-175 | 140-180 (HIIT) | 160-180+ | Good alignment |
+| Cooldown | 80-100 | 60-90 (Yoga) | 80-110 | Similar |
+
+## Appendix B: Sources Consulted
+
+- [Soundcharts Audio Features API](https://soundcharts.com/en/audio-features-api)
+- [Soundcharts API Pricing](https://developers.soundcharts.com/pricing)
+- [GetSongBPM API Documentation](https://getsongbpm.com/api)
+- [Spotify API Restrictions 2026 (Voclr.it)](https://voclr.it/news/why-spotify-has-restricted-its-api-access-what-changed-and-why-it-matters-in-2026/)
+- [Spotify API Changes (Digital Music News)](https://www.digitalmusicnews.com/2024/12/01/spotify-tightens-api-access-removes-several-data-points/)
+- [Spotify February 2026 Migration Guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide)
+- [Tunebat Music Database](https://tunebat.com/)
+- [Tunebat API](https://tunebat.com/API)
+- [Deezer Developer Portal](https://developers.deezer.com/)
+- [TIDAL Developer Portal](https://developer.tidal.com/)
+- [Apple Music API (BPM Forum Thread)](https://developer.apple.com/forums/thread/726626)
+- [AcousticBrainz Project End](https://musicbrainz.wordpress.com/2022/02/16/acousticbrainz-making-a-hard-decision-to-end-the-project/)
+- [AcousticBrainz Downloads](https://acousticbrainz.org/download)
+- [MusicBrainz API](https://musicbrainz.org/doc/MusicBrainz_API)
+- [librosa Documentation](https://librosa.org/doc/main/generated/librosa.feature.tempo.html)
+- [Essentia TempoCNN](https://essentia.upf.edu/reference/std_TempoCNN.html)
+- [Essentia Beat Detection Tutorial](https://essentia.upf.edu/tutorial_rhythm_beatdetection.html)
+- [Cyanite AI Music Analysis API](https://cyanite.ai/2025/10/06/music-analysis-api-integration/)
+- [Million Song Dataset](http://millionsongdataset.com/)
+- [GiantSteps Tempo Dataset](https://github.com/GiantSteps/giantsteps-tempo-dataset)
+- [Music Recommendation with LLMs (arXiv:2511.16478)](https://arxiv.org/html/2511.16478)
+- [Last.fm API](https://www.last.fm/api/show/track.getInfo)
+- [jog.fm](https://jog.fm/)
+- [RockMyRun](https://www.rockmyrun.com/)
+- [BPMDatabase.com](https://www.bpmdatabase.com/)
+- [SongData.io](https://songdata.io/)
+- [ShazamKit](https://developer.apple.com/shazamkit/)
+- [Feed.fm](https://www.feed.fm)
+- [Realtime BPM Analyzer](https://github.com/dlepaux/realtime-bpm-analyzer)
+- [Music APIs Collection (GitHub Gist)](https://gist.github.com/0xdevalias/eba698730024674ecae7f43f4c650096)
