@@ -1,7 +1,9 @@
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 
-const handler = toNextJsHandler(auth);
+function getHandler() {
+  return toNextJsHandler(getAuth());
+}
 
 function isDbConnectionError(error: unknown): boolean {
   if (error instanceof Error) {
@@ -18,6 +20,7 @@ function isDbConnectionError(error: unknown): boolean {
 
 async function safeHandler(req: Request) {
   try {
+    const handler = getHandler();
     return await handler.GET!(req);
   } catch (error) {
     if (isDbConnectionError(error)) {
@@ -37,6 +40,7 @@ async function safeHandler(req: Request) {
 
 async function safePostHandler(req: Request) {
   try {
+    const handler = getHandler();
     return await handler.POST!(req);
   } catch (error) {
     if (isDbConnectionError(error)) {
