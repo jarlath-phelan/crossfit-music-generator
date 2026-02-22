@@ -14,8 +14,8 @@ import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
 import { UserMenu } from '@/components/auth/user-menu'
-import { Badge } from '@/components/ui/badge'
-import { Save, AudioLines, Share } from 'lucide-react'
+import Link from 'next/link'
+import { Save, AudioLines, Share, Settings } from 'lucide-react'
 
 type GenerateState = 'empty' | 'loading' | 'results'
 
@@ -181,7 +181,13 @@ export default function GeneratePage() {
         showLogo
         rightContent={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">MOCK</Badge>
+            <Link
+              href="/profile"
+              aria-label="Settings"
+              className="p-1.5 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              <Settings className="h-5 w-5" />
+            </Link>
             <UserMenu />
           </div>
         }

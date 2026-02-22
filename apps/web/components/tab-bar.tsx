@@ -2,10 +2,8 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Zap, Bookmark, User, Music, BarChart3, Calendar } from 'lucide-react'
+import { Zap, Bookmark } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-export type UserRole = 'coach' | 'attendee'
 
 interface TabConfig {
   label: string
@@ -13,36 +11,22 @@ interface TabConfig {
   icon: React.ComponentType<{ className?: string }>
 }
 
-const COACH_TABS: TabConfig[] = [
+const TABS: TabConfig[] = [
   { label: 'Generate', href: '/generate', icon: Zap },
   { label: 'Library', href: '/library', icon: Bookmark },
-  { label: 'Profile', href: '/profile', icon: User },
 ]
 
-const ATTENDEE_TABS: TabConfig[] = [
-  { label: 'Classes', href: '/classes', icon: Calendar },
-  { label: 'Music', href: '/music', icon: Music },
-  { label: 'Stats', href: '/stats', icon: BarChart3 },
-  { label: 'Profile', href: '/profile', icon: User },
-]
-
-interface TabBarProps {
-  role: UserRole
-}
-
-export function TabBar({ role }: TabBarProps) {
+export function TabBar() {
   const pathname = usePathname()
-  const tabs = role === 'coach' ? COACH_TABS : ATTENDEE_TABS
 
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60"
-      role="tablist"
       aria-label="Main navigation"
     >
       {/* Safe area padding for iOS notch */}
       <div className="flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,0px)]">
-        {tabs.map((tab) => {
+        {TABS.map((tab) => {
           const isActive =
             pathname === tab.href ||
             (tab.href !== '/' && pathname.startsWith(tab.href))
@@ -51,8 +35,7 @@ export function TabBar({ role }: TabBarProps) {
             <Link
               key={tab.href}
               href={tab.href}
-              role="tab"
-              aria-selected={isActive}
+              aria-current={isActive ? 'page' : undefined}
               aria-label={tab.label}
               className={cn(
                 'flex flex-col items-center gap-0.5 py-2 px-3 min-w-[64px] transition-colors duration-150',
