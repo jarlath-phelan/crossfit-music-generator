@@ -1,6 +1,8 @@
 """
 FastAPI application for CrossFit Playlist Generator
 """
+import hashlib
+import hmac
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -219,6 +221,19 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
 
     # Extract user preference headers (set by Next.js server actions)
     user_id = request.headers.get("X-User-ID")
+
+    # Verify X-User-ID signature if shared secret is configured
+    if user_id and settings.api_shared_secret:
+        signature = request.headers.get("X-User-Signature", "")
+        expected = hmac.new(
+            settings.api_shared_secret.encode(),
+            user_id.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            logger.warning(f"Invalid HMAC signature for user {user_id}")
+            user_id = None  # Reject unsigned user ID
+
     user_genre = request.headers.get("X-User-Genre")
     user_exclude_artists = request.headers.get("X-User-Exclude-Artists")
     user_min_energy_str = request.headers.get("X-User-Min-Energy")

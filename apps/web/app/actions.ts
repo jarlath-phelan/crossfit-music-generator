@@ -1,5 +1,6 @@
 'use server'
 
+import { createHmac } from 'crypto'
 import { headers } from 'next/headers'
 import { eq, and } from 'drizzle-orm'
 import type { GeneratePlaylistResponse } from '@crossfit-playlist/shared'
@@ -8,6 +9,7 @@ import { db } from '@/lib/db'
 import { coachProfiles, savedPlaylists, trackFeedback } from '@/lib/schema'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_SHARED_SECRET = process.env.API_SHARED_SECRET
 const REQUEST_TIMEOUT_MS = 30000
 const MAX_WORKOUT_TEXT_LENGTH = 5000
 
@@ -129,6 +131,13 @@ export async function generatePlaylist(
   const session = await getSession()
   if (session) {
     fetchHeaders['X-User-ID'] = session.user.id
+
+    // Sign user ID with HMAC for backend verification
+    if (API_SHARED_SECRET) {
+      fetchHeaders['X-User-Signature'] = createHmac('sha256', API_SHARED_SECRET)
+        .update(session.user.id)
+        .digest('hex')
+    }
 
     const profile = await db.query.coachProfiles.findFirst({
       where: eq(coachProfiles.userId, session.user.id),

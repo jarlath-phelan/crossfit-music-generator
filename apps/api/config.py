@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     getsongbpm_api_key: Optional[str] = None
     soundnet_api_key: Optional[str] = None
 
+    # API Security
+    api_shared_secret: Optional[str] = None  # HMAC shared secret with frontend
+
     # Supabase
     supabase_url: Optional[str] = None
     supabase_service_key: Optional[str] = None
