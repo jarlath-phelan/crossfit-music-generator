@@ -9,8 +9,8 @@ import { Onboarding } from '@/components/onboarding'
 import { WorkoutDisplay } from '@/components/workout-display'
 import { PlaylistDisplay } from '@/components/playlist-display'
 import { GenerateSkeleton } from '@/components/generate-skeleton'
-import { SpotifyPlayer } from '@/components/spotify-player'
 import { useSpotifyPlayer } from '@/hooks/use-spotify-player'
+import { useSpotifyMiniPlayer } from '@/components/spotify-context'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
@@ -20,10 +20,10 @@ import { Save, AudioLines, Share, Settings } from 'lucide-react'
 
 type GenerateState = 'empty' | 'loading' | 'results'
 
-const LOADING_MESSAGES = [
-  'Parsing workout...',
-  'Finding tracks...',
-  'Composing playlist...',
+const LOADING_STAGES = [
+  { label: 'Breaking down your WOD...', progress: 20 },
+  { label: 'Matching tracks to your tempo...', progress: 55 },
+  { label: 'Dialing in the perfect playlist...', progress: 85 },
 ]
 
 const GENRE_OPTIONS = [
@@ -38,7 +38,7 @@ export default function GeneratePage() {
   const [workoutText, setWorkoutText] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('Rock')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
-  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
+  const [loadingStage, setLoadingStage] = useState(0)
   const [initialText, setInitialText] = useState<string | undefined>(undefined)
   const { data: session } = authClient.useSession()
 
@@ -69,16 +69,17 @@ export default function GeneratePage() {
     }
   }, [result])
 
-  // Cycle through loading messages
+  // Progress through loading stages on timers
   useEffect(() => {
-    if (state !== 'loading') return
-    let index = 0
-    setLoadingMessage(LOADING_MESSAGES[0])
-    const interval = setInterval(() => {
-      index = (index + 1) % LOADING_MESSAGES.length
-      setLoadingMessage(LOADING_MESSAGES[index])
-    }, 2000)
-    return () => clearInterval(interval)
+    if (state !== 'loading') {
+      setLoadingStage(0)
+      return
+    }
+    const timers = [
+      setTimeout(() => setLoadingStage(1), 2500),
+      setTimeout(() => setLoadingStage(2), 5500),
+    ]
+    return () => timers.forEach(clearTimeout)
   }, [state])
 
   // Fetch Spotify access token when authenticated
@@ -103,6 +104,39 @@ export default function GeneratePage() {
     onError: (error) => toast.error(error),
   })
 
+  const { setState: setMiniPlayerState } = useSpotifyMiniPlayer()
+
+  // Push Spotify state to mini-player context
+  useEffect(() => {
+    if (!spotifyPlayer.isReady || !result) {
+      setMiniPlayerState(null)
+      return
+    }
+    const tracks = result.playlist.tracks
+    const currentIndex = tracks.findIndex(
+      (t) => t.spotify_uri === spotifyPlayer.currentTrackUri
+    )
+    setMiniPlayerState({
+      currentTrack: currentIndex >= 0 ? tracks[currentIndex] : null,
+      isPlaying: spotifyPlayer.isPlaying,
+      position: spotifyPlayer.position,
+      duration: spotifyPlayer.duration,
+      onPlayPause: () => {
+        if (spotifyPlayer.isPlaying) {
+          spotifyPlayer.pause()
+        } else if (spotifyPlayer.currentTrackUri) {
+          spotifyPlayer.resume()
+        }
+      },
+      onSkipNext: spotifyPlayer.skipToNext,
+    })
+  }, [spotifyPlayer.isReady, spotifyPlayer.isPlaying, spotifyPlayer.currentTrackUri, spotifyPlayer.position, spotifyPlayer.duration, result, setMiniPlayerState])
+
+  // Clean up mini-player on unmount
+  useEffect(() => {
+    return () => setMiniPlayerState(null)
+  }, [setMiniPlayerState])
+
   const handleSubmit = async (
     text: string,
     imageBase64?: string,
@@ -115,7 +149,7 @@ export default function GeneratePage() {
       const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
       setResult(data)
       setState('results')
-      toast.success('Playlist generated!')
+      toast.success('Your playlist is locked in.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
       toast.error(message)
@@ -133,7 +167,7 @@ export default function GeneratePage() {
         workoutStructure: result.workout,
         playlistData: result.playlist,
       })
-      toast.success('Playlist saved!')
+      toast.success('Saved to your library.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save playlist'
       toast.error(message)
@@ -156,7 +190,7 @@ export default function GeneratePage() {
       const { spotifyUrl } = await exportToSpotify(result.playlist.name, uris)
       toast.success(
         <span>
-          Playlist exported!{' '}
+          Exported to Spotify.{' '}
           <a href={spotifyUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
             Open in Spotify
           </a>
@@ -275,11 +309,22 @@ export default function GeneratePage() {
         {/* Loading state */}
         {state === 'loading' && (
           <div className="space-y-4" aria-live="polite">
-            <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-              <div className="h-1 flex-1 rounded-full bg-[var(--secondary)] overflow-hidden">
-                <div className="h-full bg-[var(--accent)] rounded-full animate-pulse" style={{ width: '60%' }} />
+            {/* 3-stage progress */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${LOADING_STAGES[loadingStage].progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-[var(--muted)] font-mono w-8 text-right">
+                  {LOADING_STAGES[loadingStage].progress}%
+                </span>
               </div>
-              <span>{loadingMessage}</span>
+              <p className="text-sm text-[var(--muted)]">
+                {LOADING_STAGES[loadingStage].label}
+              </p>
             </div>
             <GenerateSkeleton />
           </div>
@@ -346,37 +391,15 @@ export default function GeneratePage() {
               <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[var(--accent)] animate-pulse" />
             </div>
             <h3 className="font-heading text-xl font-bold uppercase tracking-wide mb-2">
-              Paste your WOD. Get your playlist.
+              Drop your WOD. We'll bring the heat.
             </h3>
             <p className="text-sm text-[var(--muted)] max-w-xs leading-relaxed">
-              Type a workout or snap your whiteboard. We&apos;ll match the music to every phase — warm-up through cooldown.
+              Paste a workout, snap your whiteboard, or pick a named WOD. Crank matches tracks to every phase of your session.
             </p>
           </div>
         )}
       </div>
 
-      {/* Spotify player bar */}
-      {spotifyPlayer.isReady && result && (
-        <div className="fixed bottom-20 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--surface-1)]/95 backdrop-blur">
-          <div className="container mx-auto px-4 max-w-5xl">
-            <SpotifyPlayer
-              tracks={result.playlist.tracks}
-              isReady={spotifyPlayer.isReady}
-              isPlaying={spotifyPlayer.isPlaying}
-              currentTrackUri={spotifyPlayer.currentTrackUri}
-              position={spotifyPlayer.position}
-              duration={spotifyPlayer.duration}
-              onPlay={spotifyPlayer.play}
-              onPause={spotifyPlayer.pause}
-              onResume={spotifyPlayer.resume}
-              onSkipNext={spotifyPlayer.skipToNext}
-              onSkipPrevious={spotifyPlayer.skipToPrevious}
-              onSeek={spotifyPlayer.seek}
-              phases={result.workout.phases}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

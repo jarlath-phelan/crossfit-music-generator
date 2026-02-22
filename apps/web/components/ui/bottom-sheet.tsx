@@ -59,7 +59,7 @@ export function BottomSheet({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative w-full max-w-lg bg-white rounded-t-2xl shadow-xl animate-slide-up',
+          'relative w-full max-w-lg bg-[var(--surface-1)] rounded-t-2xl shadow-xl animate-slide-up',
           className
         )}
         style={{ maxHeight: height }}

@@ -41,7 +41,7 @@ export function EnergyBar({
 
   return (
     <div
-      className={cn('relative rounded-full overflow-hidden bg-gray-100', className)}
+      className={cn('relative rounded-full overflow-hidden bg-[var(--surface-2)]', className)}
       style={{ width, height }}
       role="meter"
       aria-valuenow={Math.round(clampedEnergy * 100)}

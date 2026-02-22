@@ -23,7 +23,7 @@ function Skeleton({
   return (
     <div
       className={cn(
-        'bg-gray-200 animate-pulse',
+        'bg-[var(--surface-3)] animate-pulse',
         circle ? 'rounded-full' : 'rounded-lg',
         className
       )}
@@ -61,7 +61,7 @@ function SkeletonCard({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   return (
     <div
       className={cn(
-        'rounded-xl border border-[var(--border)] bg-white p-4 space-y-3',
+        'rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-4 space-y-3',
         className
       )}
       {...props}

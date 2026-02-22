@@ -44,7 +44,7 @@ export function WorkoutDisplay({ workout, playheadPosition }: WorkoutDisplayProp
             role="listitem"
             className={`
               ${isWodPhase(phase) ? 'flex-[2]' : 'flex-1'}
-              bg-white rounded-xl border border-[var(--border)] border-l-4
+              bg-[var(--surface-1)] rounded-xl border border-[var(--border)] border-l-4
               p-2.5 shadow-sm
               animate-scale-in
             `}

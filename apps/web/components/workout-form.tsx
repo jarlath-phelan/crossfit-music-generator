@@ -87,7 +87,7 @@ export function WorkoutForm({
   // Compact mode: single-line showing workout text with Edit/New buttons
   if (isCompact && compactText) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-3 py-2">
+      <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-1)] px-3 py-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-[var(--muted)] truncate">{compactText}</p>
         </div>
