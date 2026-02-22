@@ -221,6 +221,77 @@ class MusicCuratorAgent:
 
         return best_track
 
+    def batch_search_tracks(
+        self,
+        phases: list[Phase],
+        genre: Optional[str] = None,
+        min_energy: Optional[float] = None,
+        exclude_artists: Optional[set[str]] = None,
+        boost_artists: Optional[set[str]] = None,
+    ) -> dict[str, list[Track]]:
+        """
+        Search for tracks across all phases. Uses a single API call if the source supports it,
+        otherwise falls back to per-phase search.
+
+        Returns:
+            Dict mapping phase name → list of candidate Tracks
+        """
+        effective_genre = genre or self.DEFAULT_GENRE
+
+        # Use batch search if the source supports it (e.g. ClaudeMusicSource)
+        if hasattr(self.source, 'batch_search'):
+            phases_info = []
+            for phase in phases:
+                bpm_min, bpm_max = phase.bpm_range
+                energy = min_energy or self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
+                phases_info.append({
+                    "name": phase.name,
+                    "bpm_min": bpm_min,
+                    "bpm_max": bpm_max,
+                    "duration_min": phase.duration_min,
+                    "energy": energy,
+                })
+
+            raw_results = self.source.batch_search(
+                phases_info,
+                genre=effective_genre,
+                exclude_artists=exclude_artists,
+                boost_artists=boost_artists,
+            )
+
+            if raw_results:
+                result = {}
+                for phase in phases:
+                    candidates = raw_results.get(phase.name, [])
+                    energy_threshold = min_energy or self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
+                    tracks = []
+                    for c in candidates:
+                        if c.energy >= energy_threshold:
+                            tracks.append(
+                                Track(
+                                    id=c.source_id or f"{c.source}:{c.name}:{c.artist}",
+                                    name=c.name,
+                                    artist=c.artist,
+                                    bpm=c.bpm,
+                                    energy=c.energy,
+                                    duration_ms=c.duration_ms,
+                                )
+                            )
+                    result[phase.name] = tracks
+                    logger.info(f"Batch: {len(tracks)} tracks for {phase.name}")
+                return result
+            else:
+                logger.warning("Batch search returned empty, falling back to per-phase search")
+
+        # Fallback: per-phase search (used by mock, getsongbpm, soundnet sources)
+        logger.info("Using per-phase search")
+        result = {}
+        for phase in phases:
+            result[phase.name] = self.search_tracks(
+                phase, limit=20, genre=effective_genre, min_energy=min_energy,
+            )
+        return result
+
     def learn(self, track: Track, feedback: dict) -> None:
         """
         Learn from user feedback (future implementation).
