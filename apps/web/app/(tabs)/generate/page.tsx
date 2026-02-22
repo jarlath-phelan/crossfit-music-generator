@@ -116,7 +116,7 @@ export default function GeneratePage() {
       const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
       setResult(data)
       setState('results')
-      toast.success('Playlist generated!')
+      toast.success('Your playlist is locked in.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
       toast.error(message)
@@ -134,7 +134,7 @@ export default function GeneratePage() {
         workoutStructure: result.workout,
         playlistData: result.playlist,
       })
-      toast.success('Playlist saved!')
+      toast.success('Saved to your library.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save playlist'
       toast.error(message)
@@ -157,7 +157,7 @@ export default function GeneratePage() {
       const { spotifyUrl } = await exportToSpotify(result.playlist.name, uris)
       toast.success(
         <span>
-          Playlist exported!{' '}
+          Exported to Spotify.{' '}
           <a href={spotifyUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
             Open in Spotify
           </a>
@@ -358,10 +358,10 @@ export default function GeneratePage() {
               <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[var(--accent)] animate-pulse" />
             </div>
             <h3 className="font-heading text-xl font-bold uppercase tracking-wide mb-2">
-              Paste your WOD. Get your playlist.
+              Drop your WOD. We'll bring the heat.
             </h3>
             <p className="text-sm text-[var(--muted)] max-w-xs leading-relaxed">
-              Type a workout or snap your whiteboard. We&apos;ll match the music to every phase — warm-up through cooldown.
+              Paste a workout, snap your whiteboard, or pick a named WOD. Crank matches tracks to every phase of your session.
             </p>
           </div>
         )}

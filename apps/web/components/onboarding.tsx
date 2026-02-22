@@ -16,21 +16,21 @@ const EXAMPLE_WORKOUT = '20 min AMRAP: 5 pull-ups, 10 push-ups, 15 squats.'
 const STEPS = [
   {
     icon: Zap,
-    title: 'Welcome to Crank',
+    title: 'This is Crank',
     description:
-      'Snap your whiteboard or paste your workout. Get a playlist that peaks when your workout peaks.',
+      'Your WOD deserves a soundtrack. Paste it, snap it, or pick a classic \u2014 we handle the rest.',
   },
   {
     icon: Music,
-    title: 'Try it now',
+    title: 'See it in action',
     description:
-      'We\'ll load an example workout for you. Hit Generate to see the magic.',
+      'We\'ll load a workout. Hit Generate and watch Crank build your playlist in seconds.',
   },
   {
     icon: User,
-    title: 'Make it yours',
+    title: 'Own your sound',
     description:
-      'Sign in with Spotify to play, save, and export your playlists.',
+      'Connect Spotify to stream, save, and export. Your gym, your music, your rules.',
   },
 ]
 
@@ -100,7 +100,7 @@ export function Onboarding({ onComplete, onLoadExample }: OnboardingProps) {
             Skip
           </Button>
           <Button variant="accent" className="flex-1" onClick={handleNext}>
-            {step < STEPS.length - 1 ? 'Next' : 'Get Started'}
+            {step < STEPS.length - 1 ? 'Next' : 'Let\'s go'}
           </Button>
         </div>
       </div>
