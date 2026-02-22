@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import type { GeneratePlaylistResponse } from '@crossfit-playlist/shared'
 import { generatePlaylist, getSpotifyAccessToken, savePlaylist, exportToSpotify } from '@/app/actions'
@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
 import { UserMenu } from '@/components/auth/user-menu'
 import Link from 'next/link'
-import { Save, AudioLines, Share, Settings, Clock, Music, Gauge } from 'lucide-react'
+import { Save, AudioLines, Share, Settings, Clock, Music, Gauge, RefreshCw, Wifi, AlertTriangle, ServerCrash, X, ArrowLeft, Shuffle } from 'lucide-react'
 import { formatTotalDuration } from '@/lib/utils'
 import { capture } from '@/lib/posthog'
 
@@ -41,6 +41,44 @@ const GENRE_OPTIONS = [
   'Rock', 'Hip-Hop', 'EDM', 'Metal', 'Pop', 'Punk', 'Country', 'Indie',
 ]
 
+type ErrorCategory = 'timeout' | 'network' | 'server' | 'validation'
+
+function categorizeError(message: string): { category: ErrorCategory; heading: string; suggestion: string } {
+  if (message.includes('timed out')) {
+    return {
+      category: 'timeout',
+      heading: 'Generation took too long',
+      suggestion: 'The server is under heavy load. Try a shorter workout or try again in a moment.',
+    }
+  }
+  if (message.includes('fetch') || message.includes('network') || message.includes('Failed to generate playlist: Failed')) {
+    return {
+      category: 'network',
+      heading: 'Connection problem',
+      suggestion: 'Check your internet connection and try again.',
+    }
+  }
+  if (message.includes('text is too long') || message.includes('is required')) {
+    return {
+      category: 'validation',
+      heading: 'Invalid input',
+      suggestion: message,
+    }
+  }
+  return {
+    category: 'server',
+    heading: 'Something went wrong',
+    suggestion: 'Our servers hit a snag. Try again — it usually works on the second attempt.',
+  }
+}
+
+const ERROR_ICONS: Record<ErrorCategory, typeof AlertTriangle> = {
+  timeout: Clock,
+  network: Wifi,
+  server: ServerCrash,
+  validation: AlertTriangle,
+}
+
 export default function GeneratePage() {
   const [state, setState] = useState<GenerateState>('empty')
   const [isSaving, setIsSaving] = useState(false)
@@ -53,6 +91,7 @@ export default function GeneratePage() {
   const [smoothProgress, setSmoothProgress] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [initialText, setInitialText] = useState<string | undefined>(undefined)
+  const generationIdRef = useRef(0)
   const { data: session } = authClient.useSession()
 
   // Restore last playlist from localStorage on mount
@@ -179,6 +218,7 @@ export default function GeneratePage() {
     imageBase64?: string,
     imageMediaType?: string
   ) => {
+    const thisGenId = ++generationIdRef.current
     setState('loading')
     setResult(null)
     setErrorMessage(null)
@@ -195,6 +235,7 @@ export default function GeneratePage() {
     const startTime = Date.now()
     try {
       const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
+      if (generationIdRef.current !== thisGenId) return // cancelled
       setResult(data)
       setState('results')
       localStorage.setItem('crank_last_workout_text', text)
@@ -206,6 +247,7 @@ export default function GeneratePage() {
         phase_count: data.workout.phases.length,
       })
     } catch (error) {
+      if (generationIdRef.current !== thisGenId) return // cancelled
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
       setErrorMessage(message)
       setState('error')
@@ -215,6 +257,12 @@ export default function GeneratePage() {
         elapsed_ms: Date.now() - startTime,
       })
     }
+  }
+
+  const handleCancel = () => {
+    generationIdRef.current++ // invalidate in-flight request
+    setInitialText(workoutText) // preserve what they typed
+    setState('empty')
   }
 
   const handleSave = async () => {
@@ -267,13 +315,17 @@ export default function GeneratePage() {
   const handlePlayTrack = useCallback(
     (uri: string) => {
       if (spotifyPlayer.isReady) {
-        spotifyPlayer.play(uri)
+        const allUris = result?.playlist.tracks
+          .map(t => t.spotify_uri)
+          .filter((u): u is string => !!u) ?? []
+        spotifyPlayer.play(uri, allUris.length > 1 ? allUris : undefined)
       }
     },
-    [spotifyPlayer]
+    [spotifyPlayer, result]
   )
 
   const handleNewWorkout = () => {
+    if (result && !window.confirm('Start fresh? Your current playlist will be cleared.')) return
     setResult(null)
     setWorkoutText('')
     setSelectedGenre('Rock')
@@ -281,6 +333,14 @@ export default function GeneratePage() {
     localStorage.removeItem('crank_last_playlist')
     localStorage.removeItem('crank_last_workout_text')
     localStorage.removeItem('crank_last_genre')
+  }
+
+  const handleBackToResults = () => {
+    if (result) setState('results')
+  }
+
+  const handleRegenerate = () => {
+    if (workoutText) handleSubmit(workoutText)
   }
 
   const handleEdit = () => {
@@ -336,21 +396,48 @@ export default function GeneratePage() {
         {state === 'results' ? (
           <div className="flex items-start justify-between gap-3">
             <h2 className="font-heading text-xl font-bold uppercase tracking-wide leading-tight line-clamp-2 min-w-0">
-              {result?.workout.workout_name || workoutText}
+              {result?.workout.workout_name && result.workout.workout_name !== 'UNKNOWN WORKOUT'
+                ? result.workout.workout_name
+                : workoutText || 'Custom Workout'}
             </h2>
             <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+              <Button variant="outline" size="sm" onClick={handleRegenerate}>
+                <Shuffle className="h-3.5 w-3.5 mr-1" />
+                Remix
+              </Button>
               <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
               <Button variant="outline" size="sm" onClick={handleNewWorkout}>New</Button>
             </div>
           </div>
         ) : (
           <>
-            {state === 'error' && errorMessage && (
-              <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" role="alert">
-                <p className="font-medium">Something went wrong</p>
-                <p className="mt-1 text-red-600 dark:text-red-400">{errorMessage}</p>
-              </div>
-            )}
+            {state === 'error' && errorMessage && (() => {
+              const { category, heading, suggestion } = categorizeError(errorMessage)
+              const ErrorIcon = ERROR_ICONS[category]
+              const canRetry = category !== 'validation'
+              return (
+                <div className="rounded-xl border border-red-800 bg-red-950/50 p-4 text-sm text-red-300" role="alert">
+                  <div className="flex items-start gap-3">
+                    <ErrorIcon className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-red-200">{heading}</p>
+                      <p className="mt-1 text-red-400">{suggestion}</p>
+                    </div>
+                  </div>
+                  {canRetry && workoutText && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-red-700 text-red-300 hover:bg-red-900/50"
+                      onClick={() => handleSubmit(workoutText)}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      Try Again
+                    </Button>
+                  )}
+                </div>
+              )
+            })()}
             <WorkoutForm
               onSubmit={async (text, img, mediaType) => {
                 setErrorMessage(null)
@@ -360,6 +447,10 @@ export default function GeneratePage() {
               initialText={initialText}
               onTextChange={(text) => setWorkoutText(text)}
               slotBeforeSubmit={
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-2 block">
+                    Pick your genre
+                  </label>
                 <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Music genre">
                   {GENRE_OPTIONS.map((genre) => (
                     <button
@@ -381,8 +472,19 @@ export default function GeneratePage() {
                     </button>
                   ))}
                 </div>
+                </div>
               }
             />
+            {/* Back to results — shown when editing with a previous playlist in memory */}
+            {result && state === 'empty' && (
+              <button
+                onClick={handleBackToResults}
+                className="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mt-1"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to results
+              </button>
+            )}
           </>
         )}
 
@@ -401,9 +503,18 @@ export default function GeneratePage() {
                   aria-valuemax={100}
                 />
               </div>
-              <p className="text-sm text-[var(--muted)]">
-                {LOADING_STAGES[loadingStage].label}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-[var(--muted)]">
+                  {LOADING_STAGES[loadingStage].label}
+                </p>
+                <button
+                  onClick={handleCancel}
+                  className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Cancel
+                </button>
+              </div>
             </div>
             <GenerateSkeleton />
           </div>

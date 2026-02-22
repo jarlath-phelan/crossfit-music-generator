@@ -48,7 +48,7 @@ export function IntensityArc({
   className,
 }: IntensityArcProps) {
   const width = 400
-  const padding = { left: 4, right: 4, top: 8, bottom: showLabels ? 16 : 4 }
+  const padding = { left: 28, right: 4, top: 8, bottom: showLabels ? 16 : 4 }
   const plotWidth = width - padding.left - padding.right
   const plotHeight = height - padding.top - padding.bottom
   const barHeight = 6
@@ -242,6 +242,28 @@ export function IntensityArc({
             />
           </g>
         )}
+
+        {/* Y-axis energy labels */}
+        <text
+          x={2}
+          y={padding.top + 4}
+          fill="var(--muted)"
+          fontSize={7}
+          fontFamily="var(--font-mono)"
+          opacity={0.6}
+        >
+          High
+        </text>
+        <text
+          x={2}
+          y={areaBaseline - barHeight - 2}
+          fill="var(--muted)"
+          fontSize={7}
+          fontFamily="var(--font-mono)"
+          opacity={0.6}
+        >
+          Low
+        </text>
 
         {/* Phase labels */}
         {showLabels &&

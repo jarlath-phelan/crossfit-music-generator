@@ -25,6 +25,22 @@ interface UseSpotifyPlayerReturn extends SpotifyPlayerState {
   skipToPrevious: () => void
 }
 
+/** Map Spotify SDK error types to user-friendly messages */
+function humanizeSpotifyError(type: 'initialization' | 'authentication' | 'account' | 'playback', rawMessage: string): string {
+  switch (type) {
+    case 'account':
+      return 'Spotify Premium is required for in-app playback. You can still open tracks in the Spotify app.'
+    case 'authentication':
+      return 'Your Spotify session has expired. Please sign in again.'
+    case 'initialization':
+      return 'The music player failed to load. Try refreshing the page.'
+    case 'playback':
+      return 'Playback failed. Check that Spotify is not playing on another device.'
+    default:
+      return rawMessage
+  }
+}
+
 /**
  * Hook for Spotify Web Playback SDK lifecycle management.
  *
@@ -77,7 +93,7 @@ export function useSpotifyPlayer({
     window.onSpotifyWebPlaybackSDKReady = () => {
       console.info('[spotify-sdk] Initializing player')
       const player = new Spotify.Player({
-        name: 'CrossFit Playlist Generator',
+        name: 'Crank',
         getOAuthToken: (cb) => cb(accessTokenRef.current!),
         volume: 0.8,
       })
@@ -108,21 +124,21 @@ export function useSpotifyPlayer({
 
       player.addListener('initialization_error', ({ message }) => {
         console.error('[spotify-sdk] Initialization error:', message)
-        const err = `Spotify init error: ${message}`
+        const err = humanizeSpotifyError('initialization', message)
         setState((prev) => ({ ...prev, error: err }))
         onErrorRef.current?.(err)
       })
 
       player.addListener('authentication_error', ({ message }) => {
         console.error('[spotify-sdk] Authentication error:', message)
-        const err = `Spotify auth error: ${message}`
+        const err = humanizeSpotifyError('authentication', message)
         setState((prev) => ({ ...prev, error: err, isReady: false }))
         onErrorRef.current?.(err)
       })
 
       player.addListener('account_error', ({ message }) => {
         console.error('[spotify-sdk] Account error (Premium required):', message)
-        const err = `Spotify account error (Premium required): ${message}`
+        const err = humanizeSpotifyError('account', message)
         setState((prev) => ({ ...prev, error: err, isReady: false }))
         onErrorRef.current?.(err)
       })
@@ -177,7 +193,7 @@ export function useSpotifyPlayer({
         }
       }).catch((err) => {
         console.error('[spotify-sdk] Play failed:', err.message)
-        const msg = `Failed to play: ${err.message}`
+        const msg = humanizeSpotifyError('playback', err.message)
         setState((prev) => ({ ...prev, error: msg }))
         onErrorRef.current?.(msg)
       })
