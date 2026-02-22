@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: crossfit-playlist-api
+    name: crank-api
     env: python
     region: oregon
     plan: free
@@ -8,14 +8,23 @@ services:
     rootDir: apps/api
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
-      - key: USE_MOCK_ANTHROPIC
-        value: true
-      - key: USE_MOCK_SPOTIFY
-        value: true
-      - key: LOG_LEVEL
-        value: info
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: USE_MOCK_ANTHROPIC
+        value: false
+      - key: USE_MOCK_SPOTIFY
+        value: false
+      - key: MUSIC_SOURCE
+        value: claude
+      - key: LOG_LEVEL
+        value: info
       - key: FRONTEND_URL
         value: http://localhost:3000,https://crossfit-music-generator.vercel.app
+      # Set these in Render dashboard (secrets):
+      # ANTHROPIC_API_KEY
+      # SPOTIFY_CLIENT_ID
+      # SPOTIFY_CLIENT_SECRET
+      # API_SHARED_SECRET
+      # POSTHOG_API_KEY
