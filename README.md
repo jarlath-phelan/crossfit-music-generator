@@ -102,7 +102,7 @@ Configured via `MUSIC_SOURCE` env var:
 | **Database** | PostgreSQL (Supabase) via Drizzle ORM |
 | **Analytics** | PostHog |
 | **Monorepo** | Turborepo, pnpm workspaces |
-| **Deployment** | Vercel (frontend), Fly.io (backend) |
+| **Deployment** | Vercel (frontend), Render (backend) |
 
 ## Quick Start
 
@@ -225,12 +225,12 @@ Generate a playlist from workout text or image.
 | Service | Platform | URL |
 |---------|----------|-----|
 | Frontend | Vercel | [crossfit-music-generator.vercel.app](https://crossfit-music-generator.vercel.app) |
-| Backend | Fly.io | crossfit-playlist-api.fly.dev |
+| Backend | Render | [crossfit-playlist-api.onrender.com](https://crossfit-playlist-api.onrender.com) |
 | Database | Supabase | PostgreSQL |
 
 **Frontend** auto-deploys from `main` via Vercel. Configured with `rootDirectory: apps/web` and `sourceFilesOutsideRootDirectory: true`.
 
-**Backend** runs on Fly.io (256MB shared CPU, IAD region, always-on). Deployed via `fly deploy` from `apps/api/`.
+**Backend** runs on Render (free tier). Auto-deploys from `main` via `render.yaml` at repo root.
 
 ## Development
 
