@@ -2,13 +2,13 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CrossFit Playlist Generator',
-    short_name: 'CF Playlist',
-    description: 'Generate custom workout playlists from CrossFit workout descriptions',
+    name: 'Crank',
+    short_name: 'Crank',
+    description: 'AI-matched playlists for your CrossFit workouts',
     start_url: '/',
     display: 'standalone',
-    background_color: '#0a0a0a',
-    theme_color: '#0a0a0a',
+    background_color: '#0C0C10',
+    theme_color: '#0C0C10',
     icons: [
       {
         src: '/icon-192.png',

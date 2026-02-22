@@ -21,7 +21,7 @@ export function TabBar() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--surface-1)]/90 backdrop-blur-xl"
       aria-label="Main navigation"
     >
       {/* Safe area padding for iOS notch */}

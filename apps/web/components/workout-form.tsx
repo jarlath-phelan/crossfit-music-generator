@@ -171,7 +171,7 @@ export function WorkoutForm({
                 type="button"
                 onClick={() => loadExample(wod.text)}
                 disabled={isLoading}
-                className="text-sm px-3 py-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors font-medium"
+                className="text-sm px-4 py-2.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors font-medium min-h-[44px]"
                 aria-label={`Load ${wod.name} workout`}
               >
                 {wod.name}

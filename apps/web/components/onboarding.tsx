@@ -70,7 +70,7 @@ export function Onboarding({ onComplete, onLoadExample }: OnboardingProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4 animate-fade-slide-up">
+      <div className="bg-[var(--card)] rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4 animate-fade-slide-up border border-[var(--border)]">
         <div className="flex justify-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--accent)]/10">
             <Icon className="h-7 w-7 text-[var(--accent)]" />

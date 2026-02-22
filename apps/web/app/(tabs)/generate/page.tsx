@@ -232,28 +232,6 @@ export default function GeneratePage() {
         }
       />
       <div className="container mx-auto px-4 max-w-5xl space-y-3">
-        {/* Genre chips */}
-        {state !== 'results' && (
-          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Music genre">
-            {GENRE_OPTIONS.map((genre) => (
-              <button
-                key={genre}
-                type="button"
-                role="radio"
-                aria-checked={selectedGenre === genre}
-                onClick={() => setSelectedGenre(genre)}
-                className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                  selectedGenre === genre
-                    ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                    : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30'
-                }`}
-              >
-                {genre}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Workout input — hero heading in results, full form otherwise */}
         {state === 'results' ? (
           <div className="flex items-center justify-between">
@@ -266,11 +244,32 @@ export default function GeneratePage() {
             </div>
           </div>
         ) : (
-          <WorkoutForm
-            onSubmit={handleSubmit}
-            isLoading={state === 'loading'}
-            initialText={initialText}
-          />
+          <>
+            <WorkoutForm
+              onSubmit={handleSubmit}
+              isLoading={state === 'loading'}
+              initialText={initialText}
+            />
+            {/* Genre chips — below input, secondary to workout entry */}
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Music genre">
+              {GENRE_OPTIONS.map((genre) => (
+                <button
+                  key={genre}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedGenre === genre}
+                  onClick={() => setSelectedGenre(genre)}
+                  className={`text-sm px-4 py-2 rounded-full border transition-colors min-h-[44px] ${
+                    selectedGenre === genre
+                      ? 'bg-[var(--accent)] text-white border-[var(--accent)] glow-accent'
+                      : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30'
+                  }`}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Loading state */}
@@ -288,35 +287,17 @@ export default function GeneratePage() {
 
         {/* Results state */}
         {state === 'results' && result && (
-          <div className="space-y-3 animate-fade-slide-up">
-            {/* Action buttons */}
-            {session && (
-              <div className="flex justify-end gap-2">
-                {result.playlist.tracks.some((t) => t.spotify_uri) && (
-                  <Button
-                    onClick={handleExportToSpotify}
-                    disabled={isExporting}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Share className="h-3.5 w-3.5 mr-1.5" />
-                    {isExporting ? 'Exporting...' : 'Export to Spotify'}
-                  </Button>
-                )}
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Save className="h-3.5 w-3.5 mr-1.5" />
-                  {isSaving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-            )}
+          <div className="space-y-4 animate-fade-slide-up">
+            {/* YOUR WORKOUT section */}
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-2">Your Workout</h3>
+              <WorkoutDisplay workout={result.workout} playheadPosition={playheadPosition} />
+            </div>
 
-            <WorkoutDisplay workout={result.workout} playheadPosition={playheadPosition} />
-            <PlaylistDisplay
+            {/* YOUR PLAYLIST section */}
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-2">Your Playlist</h3>
+              <PlaylistDisplay
               playlist={result.playlist}
               phases={result.workout.phases}
               spotifyToken={spotifyToken}
@@ -325,15 +306,50 @@ export default function GeneratePage() {
               isPlaying={spotifyPlayer.isPlaying}
               isAuthenticated={!!session}
             />
+            </div>
+
+            {/* Action buttons — at bottom after reviewing playlist */}
+            {session && (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  variant="outline"
+                  className="flex-1 min-h-[44px]"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isSaving ? 'Saving...' : 'Save to Library'}
+                </Button>
+                {result.playlist.tracks.some((t) => t.spotify_uri) && (
+                  <Button
+                    onClick={handleExportToSpotify}
+                    disabled={isExporting}
+                    variant="accent"
+                    className="flex-1 min-h-[44px]"
+                  >
+                    <Share className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Exporting...' : 'Export to Spotify'}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Empty state — rich, branded */}
         {state === 'empty' && !result && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <AudioLines className="h-10 w-10 text-[var(--border)] mb-3" />
-            <p className="text-sm text-[var(--muted)]">
-              Your workout breakdown and playlist will appear here
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="relative mb-6">
+              <div className="h-20 w-20 rounded-2xl bg-[var(--surface-2)] flex items-center justify-center">
+                <AudioLines className="h-10 w-10 text-[var(--accent)]" />
+              </div>
+              <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[var(--accent)] animate-pulse" />
+            </div>
+            <h3 className="font-heading text-xl font-bold uppercase tracking-wide mb-2">
+              Paste your WOD. Get your playlist.
+            </h3>
+            <p className="text-sm text-[var(--muted)] max-w-xs leading-relaxed">
+              Type a workout or snap your whiteboard. We&apos;ll match the music to every phase — warm-up through cooldown.
             </p>
           </div>
         )}
@@ -341,7 +357,7 @@ export default function GeneratePage() {
 
       {/* Spotify player bar */}
       {spotifyPlayer.isReady && result && (
-        <div className="fixed bottom-20 left-0 right-0 z-30 border-t border-[var(--border)] bg-white/95 backdrop-blur">
+        <div className="fixed bottom-20 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--surface-1)]/95 backdrop-blur">
           <div className="container mx-auto px-4 max-w-5xl">
             <SpotifyPlayer
               tracks={result.playlist.tracks}

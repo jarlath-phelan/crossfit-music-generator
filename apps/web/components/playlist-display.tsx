@@ -191,7 +191,16 @@ export function PlaylistDisplay({
                 {formatDuration(track.duration_ms)}
               </span>
 
-              {/* Phase badge */}
+              {/* Phase dot — always visible, even on mobile */}
+              {phaseIntensity && (
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: `var(--phase-${phaseIntensity === 'warm_up' ? 'warmup' : phaseIntensity === 'very_high' ? 'very-high' : phaseIntensity})` }}
+                  title={INTENSITY_LABELS[phaseIntensity]}
+                />
+              )}
+
+              {/* Phase badge — desktop only, text label */}
               {phaseIntensity && (
                 <Badge
                   variant={getPhaseVariant(phaseIntensity, true)}
@@ -201,44 +210,44 @@ export function PlaylistDisplay({
                 </Badge>
               )}
 
-              {/* Feedback buttons */}
+              {/* Feedback buttons — 44px touch targets */}
               {isAuthenticated && (
                 <div className="flex items-center gap-0.5 flex-shrink-0">
                   <button
                     onClick={() => handleFeedback(track.id, 1)}
-                    className={`p-1.5 rounded transition-colors ${
+                    className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded transition-colors ${
                       feedbackMap[track.id] === 1
-                        ? 'text-green-600 bg-green-50'
-                        : 'text-[var(--muted)] hover:text-green-600'
+                        ? 'text-green-400 bg-green-400/10'
+                        : 'text-[var(--muted)] hover:text-green-400'
                     }`}
                     aria-label={`Thumbs up ${track.name}`}
                   >
-                    <ThumbsUp className="h-3 w-3" />
+                    <ThumbsUp className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleFeedback(track.id, -1)}
-                    className={`p-1.5 rounded transition-colors ${
+                    className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded transition-colors ${
                       feedbackMap[track.id] === -1
-                        ? 'text-red-600 bg-red-50'
-                        : 'text-[var(--muted)] hover:text-red-600'
+                        ? 'text-red-400 bg-red-400/10'
+                        : 'text-[var(--muted)] hover:text-red-400'
                     }`}
                     aria-label={`Thumbs down ${track.name}`}
                   >
-                    <ThumbsDown className="h-3 w-3" />
+                    <ThumbsDown className="h-4 w-4" />
                   </button>
                 </div>
               )}
 
-              {/* Spotify link */}
+              {/* Spotify link — 44px touch target */}
               {track.spotify_url && (
                 <a
                   href={track.spotify_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors flex-shrink-0"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors flex-shrink-0"
                   aria-label={`Open ${track.name} in Spotify`}
                 >
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-4 w-4" />
                 </a>
               )}
             </div>

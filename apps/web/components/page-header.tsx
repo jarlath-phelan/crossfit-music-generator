@@ -34,7 +34,7 @@ export function PageHeader({
         {showLogo ? (
           <>
             {/* Crank logo mark */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] glow-accent">
               <Zap className="h-4 w-4 text-white" fill="white" />
             </div>
             <span className="font-heading text-2xl font-bold uppercase tracking-wider text-[var(--foreground)]">

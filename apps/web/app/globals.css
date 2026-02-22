@@ -2,45 +2,95 @@
 
 @layer base {
   :root {
-    /* Crank Design Tokens */
-    --background: #FAFAFA;
-    --foreground: #111111;
+    /* ── Crank Design Tokens ── dark athletic theme ── */
+
+    /* Core palette: near-black base, bright accent for energy */
+    --background: #0C0C10;
+    --foreground: #F0F0F2;
     --accent: #E63946;
     --accent-foreground: #FFFFFF;
-    --accent-hover: #D32F3F;
-    --muted: #6B7280;
-    --muted-foreground: #9CA3AF;
-    --border: #E5E7EB;
-    --card: #FFFFFF;
-    --card-foreground: #111111;
-    --input: #E5E7EB;
+    --accent-hover: #FF4D5A;
+    --accent-glow: rgba(230, 57, 70, 0.25);
+    --muted: #8B8D97;
+    --muted-foreground: #5C5E66;
+    --border: #1E1F26;
+    --card: #14141A;
+    --card-foreground: #F0F0F2;
+    --input: #1E1F26;
     --ring: #E63946;
+
+    /* Radius scale */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
     --radius: 0.75rem;
 
-    /* Kept for shadcn compatibility */
-    --primary: #111111;
-    --primary-foreground: #FAFAFA;
-    --secondary: #F3F4F6;
-    --secondary-foreground: #111111;
+    /* Shadcn compat */
+    --primary: #F0F0F2;
+    --primary-foreground: #0C0C10;
+    --secondary: #1A1B22;
+    --secondary-foreground: #F0F0F2;
     --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
-    --popover: #FFFFFF;
-    --popover-foreground: #111111;
+    --popover: #14141A;
+    --popover-foreground: #F0F0F2;
 
-    /* Phase colors */
-    --phase-warmup: #3B82F6;
-    --phase-low: #06B6D4;
-    --phase-moderate: #F59E0B;
-    --phase-high: #E63946;
-    --phase-very-high: #BE123C;
-    --phase-cooldown: #8B5CF6;
+    /* Phase colors — vivid against dark bg */
+    --phase-warmup: #60A5FA;
+    --phase-low: #22D3EE;
+    --phase-moderate: #FBBF24;
+    --phase-high: #F87171;
+    --phase-very-high: #FB7185;
+    --phase-cooldown: #A78BFA;
+
+    /* Surface layers */
+    --surface-1: #14141A;
+    --surface-2: #1A1B22;
+    --surface-3: #22232C;
 
     /* HR Zone colors */
-    --zone-1: #D1D5DB;
-    --zone-2: #3B82F6;
-    --zone-3: #10B981;
-    --zone-4: #F59E0B;
-    --zone-5: #E63946;
+    --zone-1: #4B5563;
+    --zone-2: #60A5FA;
+    --zone-3: #34D399;
+    --zone-4: #FBBF24;
+    --zone-5: #F87171;
+  }
+
+  /* Light mode override for users who prefer it */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --background: #F1F3F5;
+      --foreground: #111111;
+      --accent: #E63946;
+      --accent-foreground: #FFFFFF;
+      --accent-hover: #D32F3F;
+      --accent-glow: rgba(230, 57, 70, 0.15);
+      --muted: #6B7280;
+      --muted-foreground: #9CA3AF;
+      --border: #D1D5DB;
+      --card: #FFFFFF;
+      --card-foreground: #111111;
+      --input: #E5E7EB;
+      --ring: #E63946;
+      --primary: #111111;
+      --primary-foreground: #F1F3F5;
+      --secondary: #E5E7EB;
+      --secondary-foreground: #111111;
+      --popover: #FFFFFF;
+      --popover-foreground: #111111;
+      --surface-1: #FFFFFF;
+      --surface-2: #F3F4F6;
+      --surface-3: #E5E7EB;
+
+      /* Phase colors — slightly deeper for light bg */
+      --phase-warmup: #3B82F6;
+      --phase-low: #06B6D4;
+      --phase-moderate: #F59E0B;
+      --phase-high: #E63946;
+      --phase-very-high: #BE123C;
+      --phase-cooldown: #8B5CF6;
+    }
   }
 }
 
@@ -61,4 +111,23 @@
 .font-mono-nums {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+}
+
+/* Accent glow effect for key interactive elements */
+.glow-accent {
+  box-shadow: 0 0 20px var(--accent-glow), 0 0 60px var(--accent-glow);
+}
+
+/* Subtle noise texture overlay for depth */
+.noise-bg {
+  position: relative;
+}
+.noise-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
 }
