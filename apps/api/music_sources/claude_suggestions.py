@@ -44,17 +44,19 @@ RULES:
 - Only suggest REAL songs that actually exist. Do not make up songs.
 - Each artist may appear AT MOST ONCE across ALL phases.
 - BPM must be within each phase's specified range.
-- Energy level should match the phase intensity (0.0-1.0).
+- Energy level MUST be at least the minimum shown for each phase.
+- You MUST suggest the exact number of songs requested for each phase. Do not suggest fewer.
 {exclude_line}{boost_line}
 PHASES:
 {phases_text}
 
-Return ONLY a JSON object with phase names as keys:
+Return ONLY a JSON object with phase numbers as keys (matching the numbers above):
 {{
-  "Phase Name": [
+  "1": [
     {{"title": "Song Name", "artist": "Artist Name", "bpm": 150, "energy": 0.85, "duration_sec": 210}},
     ...
-  ]
+  ],
+  "2": [...]
 }}"""
 
 
@@ -156,12 +158,12 @@ class ClaudeMusicSource(MusicSource):
         # Build phases text block
         phases_lines = []
         for i, p in enumerate(phases_info, 1):
-            tracks_needed = math.ceil(p["duration_min"] / 3.5) + 3
+            tracks_needed = math.ceil(p["duration_min"] / 3.0) + 4
             energy = p.get("energy", 0.7)
             phases_lines.append(
                 f"{i}. {p['name']} ({p['duration_min']} min): "
-                f"BPM {p['bpm_min']}-{p['bpm_max']}, energy ~{energy:.1f} "
-                f"→ Suggest {tracks_needed} songs"
+                f"BPM {p['bpm_min']}-{p['bpm_max']}, energy >= {energy:.1f} "
+                f"→ Suggest exactly {tracks_needed} songs"
             )
 
         exclude_line = ""
@@ -206,11 +208,19 @@ class ClaudeMusicSource(MusicSource):
             raw = json.loads(text[start_idx:end_idx])
 
             # Convert to TrackCandidates grouped by phase name
+            # Response uses numbered keys ("1", "2", ...) — map back to phase names
             result: dict[str, list[TrackCandidate]] = {}
-            for phase_name, songs in raw.items():
+            for key, songs in raw.items():
+                # Map numbered key to phase info by index
+                try:
+                    idx = int(key) - 1
+                    phase_info = phases_info[idx] if 0 <= idx < len(phases_info) else None
+                except (ValueError, IndexError):
+                    phase_info = None
+                    logger.warning(f"Unexpected phase key in batch response: {key}")
+
+                phase_name = phase_info["name"] if phase_info else key
                 candidates = []
-                # Find matching phase info for BPM validation
-                phase_info = next((p for p in phases_info if p["name"] == phase_name), None)
                 for song in songs:
                     bpm = int(song.get("bpm", 0))
                     if phase_info and not (phase_info["bpm_min"] <= bpm <= phase_info["bpm_max"]):

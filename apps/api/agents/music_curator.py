@@ -263,7 +263,11 @@ class MusicCuratorAgent:
                 result = {}
                 for phase in phases:
                     candidates = raw_results.get(phase.name, [])
-                    energy_threshold = min_energy or self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
+                    # Relaxed energy filter for batch results: Claude already received
+                    # energy guidance in the prompt, and the scoring function penalizes
+                    # low-energy tracks. A strict filter here causes empty pools.
+                    base_threshold = min_energy or self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
+                    energy_threshold = max(0.3, base_threshold - 0.2)
                     tracks = []
                     for c in candidates:
                         if c.energy >= energy_threshold:
