@@ -126,7 +126,7 @@ export function SpotifyPlayer({
             <div className="font-medium truncate text-sm leading-tight">
               {currentTrack?.name || 'No track playing'}
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-[var(--muted)]">
+            <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
               <span className="truncate">
                 {currentTrack?.artist || 'Select a track to play'}
               </span>
@@ -150,7 +150,7 @@ export function SpotifyPlayer({
 
         {/* Seekable progress bar */}
         {currentTrack && (
-          <div className="mt-1 flex items-center gap-2 text-[10px] text-[var(--muted)] font-mono">
+          <div className="mt-1 flex items-center gap-2 text-xs text-[var(--muted)] font-mono">
             <span className="w-8 text-right">{formatDuration(position)}</span>
             <div
               ref={progressBarRef}
@@ -184,33 +184,33 @@ export function SpotifyPlayer({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="min-h-[44px] min-w-[44px]"
           onClick={onSkipPrevious}
           aria-label="Previous track"
         >
-          <SkipBack className="h-3.5 w-3.5" />
+          <SkipBack className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9"
+          className="min-h-[44px] min-w-[44px]"
           onClick={handlePlayPause}
           aria-label={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? (
-            <Pause className="h-4.5 w-4.5" />
+            <Pause className="h-5 w-5" />
           ) : (
-            <Play className="h-4.5 w-4.5" />
+            <Play className="h-5 w-5" />
           )}
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="min-h-[44px] min-w-[44px]"
           onClick={onSkipNext}
           aria-label="Next track"
         >
-          <SkipForward className="h-3.5 w-3.5" />
+          <SkipForward className="h-4 w-4" />
         </Button>
       </div>
 
@@ -218,13 +218,13 @@ export function SpotifyPlayer({
       <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
         <button
           onClick={handleMuteToggle}
-          className="p-1 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
           aria-label={isMuted ? 'Unmute' : 'Mute'}
         >
           {isMuted || volume === 0 ? (
-            <VolumeX className="h-3.5 w-3.5" />
+            <VolumeX className="h-4 w-4" />
           ) : (
-            <Volume2 className="h-3.5 w-3.5" />
+            <Volume2 className="h-4 w-4" />
           )}
         </button>
         <input
