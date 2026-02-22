@@ -19,6 +19,7 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-jakarta)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        heading: ['var(--font-heading)', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: 'var(--border)',

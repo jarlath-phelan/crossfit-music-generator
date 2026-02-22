@@ -96,6 +96,7 @@ export const savedPlaylists = pgTable("saved_playlists", {
   workoutText: text("workout_text"),
   workoutStructure: jsonb("workout_structure"),
   playlistData: jsonb("playlist_data"),
+  spotifyPlaylistUrl: text("spotify_playlist_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

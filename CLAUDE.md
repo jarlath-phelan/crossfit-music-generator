@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CrossFit Playlist Generator - AI-driven music curation for CrossFit workouts. Parse workout text or photos, match music to intensity phases via pluggable music sources, and compose optimized playlists.
 
-**Current Status**: Phase 5 - PWA with camera access. Installable as a Progressive Web App with live camera viewfinder, offline fallback, Spotify OAuth, database persistence.
+**Current Status**: Phase 6 complete - All six phases done. Track feedback (thumbs up/down), Spotify playlist export, enhanced streaming player with seek/volume/phase-aware display, production deployment config for Render + Vercel.
 
 ## Monorepo Structure
 
@@ -91,7 +91,8 @@ Input (text or photo) → Claude parses workout → Music source finds tracks by
 
 2. **MusicCuratorAgent** (`apps/api/agents/music_curator.py`)
    - Uses pluggable `MusicSource` to search tracks by BPM range
-   - Scores candidates: BPM match (50pts), energy (30pts), artist diversity (20pts)
+   - Scores candidates: BPM match (50pts), energy (30pts), artist diversity (20pts), feedback boost (15pts)
+   - Filters hidden tracks (negative feedback) and boosts preferred artists (positive feedback)
    - Default genre: Rock
 
 3. **PlaylistComposerAgent** (`apps/api/agents/playlist_composer.py`)
@@ -174,6 +175,16 @@ Generate playlist from workout text or image.
 - `GET /`: API info, mock mode status, music source
 - `GET /health`: Health check for all agents
 
+### Custom Request Headers
+
+Passed from Next.js server actions to the FastAPI backend:
+- `X-User-ID`: Authenticated user ID
+- `X-User-Genre`: Preferred music genre
+- `X-User-Exclude-Artists`: Comma-separated artists to exclude
+- `X-User-Min-Energy`: Minimum energy threshold (0-1)
+- `X-User-Boost-Artists`: Comma-separated artists to boost (from positive feedback)
+- `X-User-Hidden-Tracks`: Comma-separated track IDs to hide (from negative feedback)
+
 ## Development Workflow
 
 ### Branching
@@ -220,7 +231,7 @@ USE_MOCK_SPOTIFY=true
 HOST=0.0.0.0
 PORT=8000
 LOG_LEVEL=info
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:3000,https://crossfit-music-generator.vercel.app
 ```
 
 ### Frontend `.env.local` (apps/web/.env.local)
@@ -254,9 +265,15 @@ vercel logs <url>          # Check build logs
 
 Vercel config: `apps/web/vercel.json` (framework: nextjs). Environment variables (`BETTER_AUTH_SECRET`, `DATABASE_URL`, Spotify credentials) must be set in the Vercel dashboard.
 
-## Future Phases
+## Deployment
 
-- **Phase 6**: Track feedback, playlist export, streaming progress
+### Backend (Render)
+
+Configured via `render.yaml` at repo root. Deploys `apps/api` as a Python web service.
+
+- **Production URL**: Set after first deploy (e.g., `https://crossfit-playlist-api.onrender.com`)
+- `FRONTEND_URL` supports comma-separated origins for CORS
+- Free tier runs in mock mode (`USE_MOCK_ANTHROPIC=true`, `USE_MOCK_SPOTIFY=true`)
 
 ## Debugging
 

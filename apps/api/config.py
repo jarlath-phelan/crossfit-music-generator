@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     log_level: str = "info"
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str = "http://localhost:3000,https://crossfit-music-generator.vercel.app"
 
     model_config = SettingsConfigDict(
         env_file=".env",

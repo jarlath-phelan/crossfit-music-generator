@@ -37,7 +37,7 @@ export function PageHeader({
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)]">
               <Zap className="h-4 w-4 text-white" fill="white" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-[var(--foreground)]">
+            <span className="font-heading text-2xl font-bold uppercase tracking-wider text-[var(--foreground)]">
               Crank
             </span>
           </>

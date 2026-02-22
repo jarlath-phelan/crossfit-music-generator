@@ -6,6 +6,8 @@ import { IntensityArc } from '@/components/viz/intensity-arc'
 
 interface WorkoutDisplayProps {
   workout: WorkoutStructure
+  /** 0-1 fraction representing playback progress through the workout */
+  playheadPosition?: number
 }
 
 const PHASE_COLORS: Record<IntensityLevel, string> = {
@@ -17,14 +19,6 @@ const PHASE_COLORS: Record<IntensityLevel, string> = {
   cooldown: 'var(--phase-cooldown)',
 }
 
-const PHASE_BORDER_CLASSES: Record<IntensityLevel, string> = {
-  warm_up: 'border-l-[#3B82F6]',
-  low: 'border-l-[#10B981]',
-  moderate: 'border-l-[#F59E0B]',
-  high: 'border-l-[#F97316]',
-  very_high: 'border-l-[#EF4444]',
-  cooldown: 'border-l-[#8B5CF6]',
-}
 
 const INTENSITY_LABELS: Record<IntensityLevel, string> = {
   warm_up: 'Warm Up',
@@ -35,7 +29,7 @@ const INTENSITY_LABELS: Record<IntensityLevel, string> = {
   cooldown: 'Cooldown',
 }
 
-export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
+export function WorkoutDisplay({ workout, playheadPosition }: WorkoutDisplayProps) {
   // WOD phases get flex-[2] to be wider
   const isWodPhase = (phase: Phase) =>
     phase.intensity !== 'warm_up' && phase.intensity !== 'cooldown'
@@ -51,11 +45,10 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
             className={`
               ${isWodPhase(phase) ? 'flex-[2]' : 'flex-1'}
               bg-white rounded-xl border border-[var(--border)] border-l-4
-              ${PHASE_BORDER_CLASSES[phase.intensity]}
               p-2.5 shadow-sm
               animate-scale-in
             `}
-            style={{ animationDelay: `${index * 100}ms` }}
+            style={{ borderLeftColor: PHASE_COLORS[phase.intensity], animationDelay: `${index * 100}ms` }}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
@@ -83,6 +76,7 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
         totalDuration={workout.total_duration_min}
         showLabels
         showPeakMarker
+        playheadPosition={playheadPosition}
         height={64}
       />
     </div>

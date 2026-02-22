@@ -1,13 +1,13 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import type { Track, Playlist, Phase, IntensityLevel } from '@crossfit-playlist/shared'
 import { Button } from '@/components/ui/button'
 import { Badge, getPhaseVariant } from '@/components/ui/badge'
-import { BpmBars } from '@/components/viz/bpm-bars'
-import { EnergyBar } from '@/components/viz/energy-bar'
-import { Play, Pause, ExternalLink, Music } from 'lucide-react'
+import { Play, Pause, ExternalLink, Music, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { formatDuration, formatTotalDuration } from '@/lib/utils'
 import { SpotifyFallback } from '@/components/spotify-player'
+import { submitTrackFeedback, type TrackFeedbackMap } from '@/app/actions'
 
 interface PlaylistDisplayProps {
   playlist: Playlist
@@ -17,6 +17,12 @@ interface PlaylistDisplayProps {
   onPlayTrack?: (uri: string) => void
   currentTrackUri?: string | null
   isPlaying?: boolean
+  /** Current user's track feedback (trackId → rating) */
+  feedbackMap?: TrackFeedbackMap
+  /** Saved playlist ID (null if not yet saved) */
+  playlistId?: string | null
+  /** Whether the user is authenticated (shows feedback buttons) */
+  isAuthenticated?: boolean
 }
 
 const INTENSITY_LABELS: Record<IntensityLevel, string> = {
@@ -55,19 +61,64 @@ export function PlaylistDisplay({
   onPlayTrack,
   currentTrackUri,
   isPlaying,
+  feedbackMap: initialFeedback = {},
+  playlistId = null,
+  isAuthenticated = false,
 }: PlaylistDisplayProps) {
   const hasSpotifyTracks = playlist.tracks.some((t) => t.spotify_uri || t.spotify_url)
+  const [feedbackMap, setFeedbackMap] = useState<TrackFeedbackMap>(initialFeedback)
+  const [isPending, startTransition] = useTransition()
+
+  const handleFeedback = (trackId: string, rating: number) => {
+    // Toggle: if already rated the same, remove it (set to 0 then delete)
+    const current = feedbackMap[trackId]
+    const newRating = current === rating ? 0 : rating
+
+    // Optimistic update
+    setFeedbackMap((prev) => {
+      const next = { ...prev }
+      if (newRating === 0) {
+        delete next[trackId]
+      } else {
+        next[trackId] = newRating
+      }
+      return next
+    })
+
+    // Persist
+    startTransition(async () => {
+      try {
+        await submitTrackFeedback(playlistId, trackId, newRating)
+      } catch {
+        // Revert on error
+        setFeedbackMap((prev) => {
+          const next = { ...prev }
+          if (current) {
+            next[trackId] = current
+          } else {
+            delete next[trackId]
+          }
+          return next
+        })
+      }
+    })
+  }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {/* Header row */}
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+        <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
           <Music className="h-3.5 w-3.5" />
           <span>{playlist.tracks.length} tracks</span>
           <span className="text-[var(--border)]">/</span>
           <span className="font-mono">{formatTotalDuration(playlist.tracks)}</span>
         </div>
+        {onPlayTrack && playlist.tracks[0]?.spotify_uri && (
+          <Button variant="accent" size="sm" onClick={() => onPlayTrack(playlist.tracks[0].spotify_uri!)}>
+            <Play className="h-4 w-4 mr-1.5" /> Play All
+          </Button>
+        )}
       </div>
 
       {/* Track rows */}
@@ -82,7 +133,7 @@ export function PlaylistDisplay({
               key={track.id}
               role="listitem"
               className={`
-                flex items-center gap-2 px-2 py-1 rounded-lg transition-colors
+                flex items-center gap-2 px-2 py-2 rounded-lg transition-colors
                 ${isCurrentTrack
                   ? 'bg-[var(--accent)]/5 border-l-2 border-l-[var(--accent)]'
                   : 'hover:bg-[var(--secondary)] border-l-2 border-l-transparent'
@@ -92,17 +143,17 @@ export function PlaylistDisplay({
               style={{ animationDelay: `${index * 40}ms` }}
             >
               {/* Track number / play button */}
-              <div className="w-7 flex-shrink-0 flex justify-center">
+              <div className="w-10 flex-shrink-0 flex justify-center">
                 {canPlay ? (
                   <button
                     onClick={() => onPlayTrack!(track.spotify_uri!)}
-                    className="h-6 w-6 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                    className="h-10 w-10 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
                     aria-label={`Play ${track.name}`}
                   >
                     {isCurrentTrack && isPlaying ? (
-                      <Pause className="h-3 w-3" />
+                      <Pause className="h-4 w-4" />
                     ) : (
-                      <Play className="h-3 w-3 ml-0.5" />
+                      <Play className="h-4 w-4 ml-0.5" />
                     )}
                   </button>
                 ) : (
@@ -124,27 +175,16 @@ export function PlaylistDisplay({
 
               {/* Track name + artist */}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate" title={track.name}>
+                <div className="text-sm font-medium truncate leading-tight" title={track.name}>
                   {track.name}
                 </div>
-                <div className="text-xs text-[var(--muted)] truncate" title={track.artist}>
+                <div className="text-xs text-[var(--muted)] truncate leading-tight" title={track.artist}>
                   {track.artist}
                 </div>
               </div>
 
-              {/* BPM bars + value */}
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <BpmBars bpm={track.bpm} />
-                <span className="font-mono text-xs w-7 text-right">{track.bpm}</span>
-              </div>
-
-              {/* Energy bar + value */}
-              <div className="flex items-center gap-1.5 flex-shrink-0 hidden sm:flex">
-                <EnergyBar energy={track.energy} width={36} height={3} />
-                <span className="font-mono text-xs w-7 text-right text-[var(--muted)]">
-                  {Math.round(track.energy * 100)}%
-                </span>
-              </div>
+              {/* BPM */}
+              <span className="font-mono text-xs w-7 text-right flex-shrink-0">{track.bpm}</span>
 
               {/* Duration */}
               <span className="font-mono text-xs text-[var(--muted)] w-10 text-right flex-shrink-0">
@@ -155,10 +195,38 @@ export function PlaylistDisplay({
               {phaseIntensity && (
                 <Badge
                   variant={getPhaseVariant(phaseIntensity, true)}
-                  className="text-[9px] px-1.5 py-0 hidden md:inline-flex flex-shrink-0"
+                  className="text-[11px] px-1.5 py-0 hidden md:inline-flex flex-shrink-0"
                 >
                   {INTENSITY_LABELS[phaseIntensity]}
                 </Badge>
+              )}
+
+              {/* Feedback buttons */}
+              {isAuthenticated && (
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <button
+                    onClick={() => handleFeedback(track.id, 1)}
+                    className={`p-1.5 rounded transition-colors ${
+                      feedbackMap[track.id] === 1
+                        ? 'text-green-600 bg-green-50'
+                        : 'text-[var(--muted)] hover:text-green-600'
+                    }`}
+                    aria-label={`Thumbs up ${track.name}`}
+                  >
+                    <ThumbsUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => handleFeedback(track.id, -1)}
+                    className={`p-1.5 rounded transition-colors ${
+                      feedbackMap[track.id] === -1
+                        ? 'text-red-600 bg-red-50'
+                        : 'text-[var(--muted)] hover:text-red-600'
+                    }`}
+                    aria-label={`Thumbs down ${track.name}`}
+                  >
+                    <ThumbsDown className="h-3 w-3" />
+                  </button>
+                </div>
               )}
 
               {/* Spotify link */}

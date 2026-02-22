@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import type { GeneratePlaylistResponse } from '@crossfit-playlist/shared'
-import { generatePlaylist, getSpotifyAccessToken, savePlaylist } from '@/app/actions'
+import { generatePlaylist, getSpotifyAccessToken, savePlaylist, exportToSpotify } from '@/app/actions'
 import { WorkoutForm } from '@/components/workout-form'
 import { WorkoutDisplay } from '@/components/workout-display'
 import { PlaylistDisplay } from '@/components/playlist-display'
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
 import { UserMenu } from '@/components/auth/user-menu'
 import { Badge } from '@/components/ui/badge'
-import { Save, AudioLines } from 'lucide-react'
+import { Save, AudioLines, Share } from 'lucide-react'
 
 type GenerateState = 'empty' | 'loading' | 'results'
 
@@ -28,6 +28,7 @@ const LOADING_MESSAGES = [
 export default function GeneratePage() {
   const [state, setState] = useState<GenerateState>('empty')
   const [isSaving, setIsSaving] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [result, setResult] = useState<GeneratePlaylistResponse | null>(null)
   const [workoutText, setWorkoutText] = useState('')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
@@ -107,6 +108,34 @@ export default function GeneratePage() {
     }
   }
 
+  const handleExportToSpotify = async () => {
+    if (!result) return
+    const uris = result.playlist.tracks
+      .map((t) => t.spotify_uri)
+      .filter((uri): uri is string => !!uri)
+    if (uris.length === 0) {
+      toast.error('No Spotify tracks to export')
+      return
+    }
+    setIsExporting(true)
+    try {
+      const { spotifyUrl } = await exportToSpotify(result.playlist.name, uris)
+      toast.success(
+        <span>
+          Playlist exported!{' '}
+          <a href={spotifyUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+            Open in Spotify
+          </a>
+        </span>
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to export'
+      toast.error(message)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handlePlayTrack = useCallback(
     (uri: string) => {
       if (spotifyPlayer.isReady) {
@@ -126,6 +155,25 @@ export default function GeneratePage() {
     setState('empty')
   }
 
+  // Compute playhead position (0-1) for the IntensityArc
+  const playheadPosition = useMemo(() => {
+    if (!result || !spotifyPlayer.currentTrackUri) return undefined
+    const tracks = result.playlist.tracks
+    const currentIndex = tracks.findIndex((t) => t.spotify_uri === spotifyPlayer.currentTrackUri)
+    if (currentIndex < 0) return undefined
+
+    const totalMs = tracks.reduce((sum, t) => sum + t.duration_ms, 0)
+    if (totalMs === 0) return undefined
+
+    // Sum durations of all tracks before the current one + current position
+    let elapsed = 0
+    for (let i = 0; i < currentIndex; i++) {
+      elapsed += tracks[i].duration_ms
+    }
+    elapsed += spotifyPlayer.position
+    return Math.min(1, elapsed / totalMs)
+  }, [result, spotifyPlayer.currentTrackUri, spotifyPlayer.position])
+
   return (
     <div>
       <PageHeader
@@ -133,22 +181,23 @@ export default function GeneratePage() {
         showLogo
         rightContent={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">MOCK</Badge>
+            <Badge variant="outline" className="text-xs">MOCK</Badge>
             <UserMenu />
           </div>
         }
       />
       <div className="container mx-auto px-4 max-w-5xl space-y-3">
-        {/* Workout input — full or compact */}
+        {/* Workout input — hero heading in results, full form otherwise */}
         {state === 'results' ? (
-          <WorkoutForm
-            onSubmit={handleSubmit}
-            isLoading={false}
-            isCompact
-            compactText={workoutText || result?.workout.workout_name}
-            onEdit={handleEdit}
-            onNewWorkout={handleNewWorkout}
-          />
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-xl font-bold uppercase tracking-wide truncate">
+              {result?.workout.workout_name || workoutText}
+            </h2>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
+              <Button variant="outline" size="sm" onClick={handleNewWorkout}>New</Button>
+            </div>
+          </div>
         ) : (
           <WorkoutForm
             onSubmit={handleSubmit}
@@ -172,9 +221,20 @@ export default function GeneratePage() {
         {/* Results state */}
         {state === 'results' && result && (
           <div className="space-y-3 animate-fade-slide-up">
-            {/* Save button */}
+            {/* Action buttons */}
             {session && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                {result.playlist.tracks.some((t) => t.spotify_uri) && (
+                  <Button
+                    onClick={handleExportToSpotify}
+                    disabled={isExporting}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Share className="h-3.5 w-3.5 mr-1.5" />
+                    {isExporting ? 'Exporting...' : 'Export to Spotify'}
+                  </Button>
+                )}
                 <Button
                   onClick={handleSave}
                   disabled={isSaving}
@@ -187,7 +247,7 @@ export default function GeneratePage() {
               </div>
             )}
 
-            <WorkoutDisplay workout={result.workout} />
+            <WorkoutDisplay workout={result.workout} playheadPosition={playheadPosition} />
             <PlaylistDisplay
               playlist={result.playlist}
               phases={result.workout.phases}
@@ -195,6 +255,7 @@ export default function GeneratePage() {
               onPlayTrack={spotifyPlayer.isReady ? handlePlayTrack : undefined}
               currentTrackUri={spotifyPlayer.currentTrackUri}
               isPlaying={spotifyPlayer.isPlaying}
+              isAuthenticated={!!session}
             />
           </div>
         )}
@@ -226,6 +287,8 @@ export default function GeneratePage() {
               onResume={spotifyPlayer.resume}
               onSkipNext={spotifyPlayer.skipToNext}
               onSkipPrevious={spotifyPlayer.skipToPrevious}
+              onSeek={spotifyPlayer.seek}
+              phases={result.workout.phases}
             />
           </div>
         </div>

@@ -41,6 +41,8 @@ class PlaylistComposerAgent:
         genre: Optional[str] = None,
         min_energy: Optional[float] = None,
         exclude_artists: Optional[set[str]] = None,
+        boost_artists: Optional[set[str]] = None,
+        hidden_tracks: Optional[set[str]] = None,
     ) -> Playlist:
         """
         Compose a complete playlist for a workout.
@@ -50,6 +52,8 @@ class PlaylistComposerAgent:
             genre: Optional genre override from user preferences
             min_energy: Optional minimum energy override
             exclude_artists: Optional set of artists to exclude
+            boost_artists: Optional set of artists to boost (from positive feedback)
+            hidden_tracks: Optional set of track IDs to exclude (from negative feedback)
 
         Returns:
             Complete playlist with ordered tracks
@@ -70,6 +74,8 @@ class PlaylistComposerAgent:
                 used_artists,
                 genre=genre,
                 min_energy=min_energy,
+                boost_artists=boost_artists,
+                hidden_tracks=hidden_tracks,
             )
 
             tracks.extend(phase_tracks)
@@ -99,6 +105,8 @@ class PlaylistComposerAgent:
         used_artists: set[str],
         genre: Optional[str] = None,
         min_energy: Optional[float] = None,
+        boost_artists: Optional[set[str]] = None,
+        hidden_tracks: Optional[set[str]] = None,
     ) -> list[Track]:
         """
         Select one or more tracks to fill a phase duration.
@@ -134,6 +142,8 @@ class PlaylistComposerAgent:
                 target_duration_ms=remaining_ms,
                 genre=genre,
                 min_energy=min_energy,
+                boost_artists=boost_artists,
+                hidden_tracks=hidden_tracks,
             )
 
             if not track:
@@ -154,6 +164,7 @@ class PlaylistComposerAgent:
         if not phase_tracks:
             track = self.curator.select_track_for_phase(
                 phase, used_artists, genre=genre, min_energy=min_energy,
+                boost_artists=boost_artists, hidden_tracks=hidden_tracks,
             )
             if track:
                 phase_tracks.append(track)
@@ -216,6 +227,8 @@ class PlaylistComposerAgent:
         genre: Optional[str] = None,
         min_energy: Optional[float] = None,
         exclude_artists: Optional[set[str]] = None,
+        boost_artists: Optional[set[str]] = None,
+        hidden_tracks: Optional[set[str]] = None,
     ) -> Playlist:
         """
         Complete workflow: compose and validate playlist.
@@ -225,6 +238,8 @@ class PlaylistComposerAgent:
             genre: Optional genre override from user preferences
             min_energy: Optional minimum energy override
             exclude_artists: Optional set of artists to exclude
+            boost_artists: Optional set of artists to boost (from positive feedback)
+            hidden_tracks: Optional set of track IDs to exclude (from negative feedback)
 
         Returns:
             Validated playlist
@@ -234,7 +249,9 @@ class PlaylistComposerAgent:
         """
         # Compose
         playlist = self.compose(
-            workout, genre=genre, min_energy=min_energy, exclude_artists=exclude_artists,
+            workout, genre=genre, min_energy=min_energy,
+            exclude_artists=exclude_artists,
+            boost_artists=boost_artists, hidden_tracks=hidden_tracks,
         )
         
         # Validate

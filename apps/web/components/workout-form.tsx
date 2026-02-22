@@ -84,13 +84,13 @@ export function WorkoutForm({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {onEdit && (
-            <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+            <Button type="button" variant="outline" onClick={onEdit}>
               <Pencil className="h-3 w-3 mr-1.5" />
               Edit
             </Button>
           )}
           {onNewWorkout && (
-            <Button type="button" variant="outline" size="sm" onClick={onNewWorkout}>
+            <Button type="button" variant="outline" onClick={onNewWorkout}>
               <RotateCcw className="h-3 w-3 mr-1.5" />
               New
             </Button>
@@ -159,7 +159,7 @@ export function WorkoutForm({
                 type="button"
                 onClick={() => loadExample(example)}
                 disabled={isLoading}
-                className="text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
+                className="text-sm px-3 py-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
                 aria-label={`Load example: ${example}`}
               >
                 {example}

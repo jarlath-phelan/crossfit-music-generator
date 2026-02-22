@@ -17,3 +17,5 @@ services:
         value: info
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: FRONTEND_URL
+        value: http://localhost:3000,https://crossfit-music-generator.vercel.app

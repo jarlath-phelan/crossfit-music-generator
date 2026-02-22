@@ -29,10 +29,10 @@
 
     /* Phase colors */
     --phase-warmup: #3B82F6;
-    --phase-low: #10B981;
+    --phase-low: #06B6D4;
     --phase-moderate: #F59E0B;
-    --phase-high: #F97316;
-    --phase-very-high: #EF4444;
+    --phase-high: #E63946;
+    --phase-very-high: #BE123C;
     --phase-cooldown: #8B5CF6;
 
     /* HR Zone colors */

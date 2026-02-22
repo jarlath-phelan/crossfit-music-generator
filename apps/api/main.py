@@ -78,15 +78,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Configure CORS - use specific origins for security
+# Configure CORS - parse comma-separated origins for dev + production
+_allowed_origins = [o.strip() for o in settings.frontend_url.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=[
         "Content-Type", "Authorization",
         "X-User-ID", "X-User-Genre", "X-User-Exclude-Artists", "X-User-Min-Energy",
+        "X-User-Boost-Artists", "X-User-Hidden-Tracks",
     ],
 )
 
@@ -212,6 +214,8 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     user_exclude_artists = request.headers.get("X-User-Exclude-Artists")
     user_min_energy_str = request.headers.get("X-User-Min-Energy")
     user_min_energy = float(user_min_energy_str) if user_min_energy_str else None
+    user_boost_artists = request.headers.get("X-User-Boost-Artists")
+    user_hidden_tracks = request.headers.get("X-User-Hidden-Tracks")
 
     if user_id:
         logger.info(f"Authenticated request from user {user_id}")
@@ -241,11 +245,19 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
         exclude_set = set()
         if user_exclude_artists:
             exclude_set = {a.strip() for a in user_exclude_artists.split(",") if a.strip()}
+        boost_set = set()
+        if user_boost_artists:
+            boost_set = {a.strip() for a in user_boost_artists.split(",") if a.strip()}
+        hidden_set = set()
+        if user_hidden_tracks:
+            hidden_set = {t.strip() for t in user_hidden_tracks.split(",") if t.strip()}
         playlist = playlist_composer.compose_and_validate(
             workout,
             genre=user_genre,
             min_energy=user_min_energy,
             exclude_artists=exclude_set,
+            boost_artists=boost_set,
+            hidden_tracks=hidden_set,
         )
         logger.info(f"Composed playlist: {len(playlist.tracks)} tracks")
 

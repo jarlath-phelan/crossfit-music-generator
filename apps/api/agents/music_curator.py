@@ -107,7 +107,9 @@ class MusicCuratorAgent:
     def score_candidates(self,
                         tracks: list[Track],
                         phase: Phase,
-                        used_artists: set[str]) -> list[tuple[Track, float]]:
+                        used_artists: set[str],
+                        boost_artists: Optional[set[str]] = None,
+                        hidden_tracks: Optional[set[str]] = None) -> list[tuple[Track, float]]:
         """
         Score and rank candidate tracks for a phase.
 
@@ -115,6 +117,8 @@ class MusicCuratorAgent:
             tracks: Candidate tracks
             phase: Target phase requirements
             used_artists: Set of artists already used (to avoid repeats)
+            boost_artists: Artists to boost from positive feedback (+15 pts)
+            hidden_tracks: Track IDs to filter out from negative feedback
 
         Returns:
             List of (track, score) tuples, sorted by score descending
@@ -122,6 +126,10 @@ class MusicCuratorAgent:
         bpm_min, bpm_max = phase.bpm_range
         target_bpm = (bpm_min + bpm_max) / 2
         target_energy = self.DEFAULT_MIN_ENERGY.get(phase.intensity, 0.5)
+
+        # Filter out hidden tracks
+        if hidden_tracks:
+            tracks = [t for t in tracks if t.id not in hidden_tracks]
 
         scored_tracks = []
 
@@ -145,6 +153,10 @@ class MusicCuratorAgent:
             else:
                 score -= 10  # Penalty for repeating artist
 
+            # Boost artists from positive feedback - 15 bonus points
+            if boost_artists and track.artist in boost_artists:
+                score += 15
+
             scored_tracks.append((track, score))
 
         # Sort by score descending
@@ -157,7 +169,9 @@ class MusicCuratorAgent:
                               used_artists: set[str],
                               target_duration_ms: Optional[int] = None,
                               genre: Optional[str] = None,
-                              min_energy: Optional[float] = None) -> Optional[Track]:
+                              min_energy: Optional[float] = None,
+                              boost_artists: Optional[set[str]] = None,
+                              hidden_tracks: Optional[set[str]] = None) -> Optional[Track]:
         """
         Select the best track for a workout phase.
 
@@ -167,6 +181,8 @@ class MusicCuratorAgent:
             target_duration_ms: Preferred track duration (optional)
             genre: Optional genre override
             min_energy: Optional minimum energy override
+            boost_artists: Artists to boost from positive feedback
+            hidden_tracks: Track IDs to filter out from negative feedback
 
         Returns:
             Selected track or None if no suitable tracks found
@@ -179,7 +195,10 @@ class MusicCuratorAgent:
             return None
 
         # Score and rank candidates
-        scored_candidates = self.score_candidates(candidates, phase, used_artists)
+        scored_candidates = self.score_candidates(
+            candidates, phase, used_artists,
+            boost_artists=boost_artists, hidden_tracks=hidden_tracks,
+        )
 
         if not scored_candidates:
             logger.warning(f"No scored candidates for phase {phase.name}")

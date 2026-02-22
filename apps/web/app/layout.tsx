@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google'
+import { Plus_Jakarta_Sans, JetBrains_Mono, Barlow_Condensed } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { SWRegister } from '@/components/sw-register'
@@ -12,6 +12,12 @@ const jakarta = Plus_Jakarta_Sans({
 const mono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
+})
+
+const heading = Barlow_Condensed({
+  subsets: ['latin'],
+  weight: ['700'],
+  variable: '--font-heading',
 })
 
 export const metadata: Metadata = {
@@ -38,7 +44,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body className={`${jakarta.variable} ${mono.variable} font-sans`}>
+      <body className={`${jakarta.variable} ${mono.variable} ${heading.variable} font-sans`}>
         {children}
         <Toaster position="top-center" />
         <SWRegister />
