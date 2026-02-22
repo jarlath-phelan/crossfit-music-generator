@@ -37,6 +37,8 @@ export function UserMenu() {
         size="sm"
         onClick={() => setOpen(!open)}
         className="gap-2"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {session.user.image ? (
           <img
@@ -54,10 +56,18 @@ export function UserMenu() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] shadow-lg z-50">
+        <div
+          className="absolute right-0 mt-2 w-48 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] shadow-lg z-50"
+          role="menu"
+          aria-label="User menu"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setOpen(false);
+          }}
+        >
           <div className="py-1">
             <Link
               href="/profile"
+              role="menuitem"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-[var(--secondary)]"
             >
@@ -66,6 +76,7 @@ export function UserMenu() {
             </Link>
             <Link
               href="/library"
+              role="menuitem"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-[var(--secondary)]"
             >
@@ -74,6 +85,7 @@ export function UserMenu() {
             </Link>
             <hr className="my-1 border-[var(--border)]" />
             <button
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 authClient.signOut();

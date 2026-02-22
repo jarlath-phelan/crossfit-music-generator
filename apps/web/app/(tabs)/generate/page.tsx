@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
 import { UserMenu } from '@/components/auth/user-menu'
 import Link from 'next/link'
-import { Save, AudioLines, Share, Settings } from 'lucide-react'
+import { Save, AudioLines, Share, Settings, Clock, Music, Gauge } from 'lucide-react'
+import { formatTotalDuration } from '@/lib/utils'
 
 type GenerateState = 'empty' | 'loading' | 'results'
 
@@ -333,6 +334,26 @@ export default function GeneratePage() {
         {/* Results state */}
         {state === 'results' && result && (
           <div className="space-y-4 animate-fade-slide-up">
+            {/* Summary metrics bar */}
+            <div className="flex items-center gap-3 text-xs text-[var(--muted)] font-mono">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {result.workout.total_duration_min} min
+              </span>
+              <span className="text-[var(--border)]">&middot;</span>
+              <span className="flex items-center gap-1">
+                <Music className="h-3 w-3" />
+                {result.playlist.tracks.length} tracks
+              </span>
+              <span className="text-[var(--border)]">&middot;</span>
+              <span className="capitalize">{selectedGenre}</span>
+              <span className="text-[var(--border)]">&middot;</span>
+              <span className="flex items-center gap-1">
+                <Gauge className="h-3 w-3" />
+                Peak {Math.max(...result.playlist.tracks.map(t => t.bpm))} BPM
+              </span>
+            </div>
+
             {/* YOUR WORKOUT section */}
             <div>
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--muted)] mb-2">Your Workout</h3>

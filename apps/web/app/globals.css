@@ -113,6 +113,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Accent glow effect for key interactive elements */
 .glow-accent {
   box-shadow: 0 0 20px var(--accent-glow), 0 0 60px var(--accent-glow);

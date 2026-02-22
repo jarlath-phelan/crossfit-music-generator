@@ -154,7 +154,7 @@ export function SpotifyPlayer({
             <span className="w-8 text-right">{formatDuration(position)}</span>
             <div
               ref={progressBarRef}
-              className="flex-1 h-1.5 bg-[var(--secondary)] rounded-full overflow-hidden cursor-pointer group"
+              className="flex-1 py-3 cursor-pointer group"
               onClick={handleSeek}
               role="slider"
               tabIndex={0}
@@ -169,10 +169,12 @@ export function SpotifyPlayer({
                 else if (e.key === 'ArrowLeft') onSeek(Math.max(0, position - step))
               }}
             >
-              <div
-                className="h-full bg-[var(--accent)] rounded-full transition-all duration-300 group-hover:bg-[var(--accent-hover)]"
-                style={{ width: `${progressPercent}%` }}
-              />
+              <div className="h-1.5 bg-[var(--secondary)] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[var(--accent)] rounded-full transition-all duration-300 group-hover:bg-[var(--accent-hover)]"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
             <span className="w-8">{formatDuration(duration)}</span>
           </div>

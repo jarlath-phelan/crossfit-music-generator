@@ -36,14 +36,19 @@ export function WorkoutDisplay({ workout, playheadPosition }: WorkoutDisplayProp
 
   return (
     <div className="space-y-2">
-      {/* Phase cards in a horizontal row */}
-      <div className="flex gap-2" role="list" aria-label={`Workout phases, ${workout.phases.length} total`}>
+      {/* Phase cards — horizontal scroll on mobile, flex row on desktop */}
+      <div
+        className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide sm:overflow-x-visible"
+        role="list"
+        aria-label={`Workout phases, ${workout.phases.length} total`}
+      >
         {workout.phases.map((phase, index) => (
           <div
             key={index}
             role="listitem"
             className={`
-              ${isWodPhase(phase) ? 'flex-[2]' : 'flex-1'}
+              min-w-[140px] snap-center sm:min-w-0
+              ${isWodPhase(phase) ? 'sm:flex-[2]' : 'sm:flex-1'}
               bg-[var(--surface-1)] rounded-xl border border-[var(--border)] border-l-4
               p-2.5 shadow-sm
               animate-scale-in
