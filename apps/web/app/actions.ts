@@ -225,6 +225,12 @@ export async function generatePlaylist(
         fetchHeaders['X-User-Taste-Description'] = taste.tasteDescription
       }
     }
+
+    // Pass feature flags to backend
+    const appSettings = await getAppSettings()
+    if (appSettings.music_strategy) {
+      fetchHeaders['X-Music-Strategy'] = appSettings.music_strategy
+    }
   }
 
   // Pass genre for unauthenticated users too
