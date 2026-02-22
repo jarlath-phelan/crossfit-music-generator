@@ -63,3 +63,6 @@ Thumbs.db
 # Design exploration
 logo-playground.html
 
+# Git worktrees
+.worktrees/
+
