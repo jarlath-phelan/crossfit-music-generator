@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { GeneratePlaylistResponse } from '@crossfit-playlist/shared'
 import { generatePlaylist, getSpotifyAccessToken, savePlaylist, exportToSpotify } from '@/app/actions'
 import { WorkoutForm } from '@/components/workout-form'
+import { Onboarding } from '@/components/onboarding'
 import { WorkoutDisplay } from '@/components/workout-display'
 import { PlaylistDisplay } from '@/components/playlist-display'
 import { GenerateSkeleton } from '@/components/generate-skeleton'
@@ -38,6 +39,7 @@ export default function GeneratePage() {
   const [selectedGenre, setSelectedGenre] = useState('Rock')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
+  const [initialText, setInitialText] = useState<string | undefined>(undefined)
   const { data: session } = authClient.useSession()
 
   // Cycle through loading messages
@@ -181,6 +183,10 @@ export default function GeneratePage() {
 
   return (
     <div>
+      <Onboarding
+        onComplete={() => {}}
+        onLoadExample={(text) => setInitialText(text)}
+      />
       <PageHeader
         title="Generate"
         showLogo
@@ -235,6 +241,7 @@ export default function GeneratePage() {
           <WorkoutForm
             onSubmit={handleSubmit}
             isLoading={state === 'loading'}
+            initialText={initialText}
           />
         )}
 

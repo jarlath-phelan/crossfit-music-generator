@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Camera, Type, Zap, Pencil, RotateCcw } from 'lucide-react'
@@ -20,6 +20,8 @@ interface WorkoutFormProps {
   onEdit?: () => void
   /** Called when user clicks New Workout in compact mode */
   onNewWorkout?: () => void
+  /** Pre-populate the textarea with this text (e.g. from onboarding) */
+  initialText?: string
 }
 
 const NAMED_WODS: { name: string; text: string }[] = [
@@ -43,9 +45,14 @@ export function WorkoutForm({
   compactText,
   onEdit,
   onNewWorkout,
+  initialText,
 }: WorkoutFormProps) {
-  const [workoutText, setWorkoutText] = useState('')
+  const [workoutText, setWorkoutText] = useState(initialText ?? '')
   const [inputMode, setInputMode] = useState<InputMode>('text')
+
+  useEffect(() => {
+    if (initialText) setWorkoutText(initialText)
+  }, [initialText])
   const [imageBase64, setImageBase64] = useState<string | null>(null)
   const [imageMediaType, setImageMediaType] = useState<string | null>(null)
 
