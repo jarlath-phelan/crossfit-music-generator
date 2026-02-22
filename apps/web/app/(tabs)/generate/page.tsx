@@ -42,6 +42,33 @@ export default function GeneratePage() {
   const [initialText, setInitialText] = useState<string | undefined>(undefined)
   const { data: session } = authClient.useSession()
 
+  // Restore last playlist from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('crank_last_playlist')
+      if (saved) {
+        const parsed = JSON.parse(saved) as GeneratePlaylistResponse
+        if (parsed?.workout && parsed?.playlist) {
+          setResult(parsed)
+          setState('results')
+        }
+      }
+    } catch {
+      // Ignore invalid localStorage data
+    }
+  }, [])
+
+  // Save result to localStorage when it changes
+  useEffect(() => {
+    if (result) {
+      try {
+        localStorage.setItem('crank_last_playlist', JSON.stringify(result))
+      } catch {
+        // Ignore quota exceeded errors
+      }
+    }
+  }, [result])
+
   // Cycle through loading messages
   useEffect(() => {
     if (state !== 'loading') return
@@ -156,6 +183,7 @@ export default function GeneratePage() {
     setResult(null)
     setWorkoutText('')
     setState('empty')
+    localStorage.removeItem('crank_last_playlist')
   }
 
   const handleEdit = () => {
