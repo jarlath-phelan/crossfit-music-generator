@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
 import { UserMenu } from '@/components/auth/user-menu'
 import Link from 'next/link'
-import { Save, AudioLines, Share, Settings, Clock, Music, Gauge, RefreshCw, Wifi, AlertTriangle, ServerCrash, X, ArrowLeft, Shuffle } from 'lucide-react'
+import { Save, AudioLines, Share, Settings, HelpCircle, Clock, Music, Gauge, RefreshCw, Wifi, AlertTriangle, ServerCrash, X, ArrowLeft, Shuffle } from 'lucide-react'
 import { formatTotalDuration } from '@/lib/utils'
 import { capture } from '@/lib/posthog'
 
@@ -393,6 +393,13 @@ export default function GeneratePage() {
         showLogo
         rightContent={
           <div className="flex items-center gap-2">
+            <Link
+              href="/help"
+              aria-label="Help"
+              className="p-1.5 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Link>
             {session && (
               <Link
                 href="/settings"
