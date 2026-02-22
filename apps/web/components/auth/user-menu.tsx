@@ -10,7 +10,12 @@ import Link from "next/link";
 export function UserMenu() {
   const { data: session, isPending } = authClient.useSession();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -22,7 +27,7 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (isPending) {
+  if (!mounted || isPending) {
     return <div className="h-9 w-24 animate-pulse rounded-lg bg-[var(--surface-2)]" />;
   }
 

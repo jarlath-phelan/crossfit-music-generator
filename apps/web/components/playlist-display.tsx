@@ -199,7 +199,7 @@ function PhaseSection({
                 key={track.id}
                 role="listitem"
                 className={`
-                  flex items-center gap-2 px-2 py-2 rounded-lg transition-colors
+                  flex items-center gap-1.5 sm:gap-2 px-2 py-2 rounded-lg transition-colors
                   ${isCurrentTrack
                     ? 'bg-[var(--accent)]/5 border-l-2 border-l-[var(--accent)]'
                     : 'hover:bg-[var(--secondary)] border-l-2 border-l-transparent'
@@ -209,11 +209,11 @@ function PhaseSection({
                 style={{ animationDelay: `${globalIndex * 40}ms` }}
               >
                 {/* Track number / play button */}
-                <div className="w-10 flex-shrink-0 flex justify-center">
+                <div className="w-9 sm:w-10 flex-shrink-0 flex justify-center">
                   {canPlay ? (
                     <button
                       onClick={() => onPlayTrack!(track.spotify_uri!)}
-                      className="h-10 w-10 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                      className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
                       aria-label={`Play ${track.name}`}
                     >
                       {isCurrentTrack && isPlaying ? (
@@ -239,21 +239,21 @@ function PhaseSection({
                   />
                 )}
 
-                {/* Track name + artist */}
+                {/* Track name + artist — wraps to 2 lines on mobile */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate leading-tight" title={track.name}>
+                  <div className="text-sm font-medium leading-tight line-clamp-2" title={track.name}>
                     {track.name}
                   </div>
-                  <div className="text-xs text-[var(--muted)] truncate leading-tight" title={track.artist}>
+                  <div className="text-xs text-[var(--muted)] leading-tight line-clamp-1 mt-0.5" title={track.artist}>
                     {track.artist}
                   </div>
                 </div>
 
-                {/* BPM */}
-                <span className="font-mono text-xs w-7 text-right flex-shrink-0">{track.bpm}</span>
+                {/* BPM — hidden on mobile, visible on sm+ */}
+                <span className="hidden sm:block font-mono text-xs w-7 text-right flex-shrink-0">{track.bpm}</span>
 
                 {/* Duration */}
-                <span className="font-mono text-xs text-[var(--muted)] w-10 text-right flex-shrink-0">
+                <span className="font-mono text-xs text-[var(--muted)] w-9 sm:w-10 text-right flex-shrink-0">
                   {formatDuration(track.duration_ms)}
                 </span>
 
@@ -261,7 +261,7 @@ function PhaseSection({
 
                 {/* Feedback buttons — 44px touch targets */}
                 {isAuthenticated && (
-                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <div className="flex items-center gap-0 flex-shrink-0">
                     <button
                       onClick={() => handleFeedback(track.id, 1)}
                       className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded transition-colors ${
@@ -417,7 +417,7 @@ export function PlaylistDisplay({
                 key={track.id}
                 role="listitem"
                 className={`
-                  flex items-center gap-2 px-2 py-2 rounded-lg transition-colors
+                  flex items-center gap-1.5 sm:gap-2 px-2 py-2 rounded-lg transition-colors
                   ${isCurrentTrack
                     ? 'bg-[var(--accent)]/5 border-l-2 border-l-[var(--accent)]'
                     : 'hover:bg-[var(--secondary)] border-l-2 border-l-transparent'
@@ -427,11 +427,11 @@ export function PlaylistDisplay({
                 style={{ animationDelay: `${index * 40}ms` }}
               >
                 {/* Track number / play button */}
-                <div className="w-10 flex-shrink-0 flex justify-center">
+                <div className="w-9 sm:w-10 flex-shrink-0 flex justify-center">
                   {canPlay ? (
                     <button
                       onClick={() => onPlayTrack!(track.spotify_uri!)}
-                      className="h-10 w-10 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                      className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
                       aria-label={`Play ${track.name}`}
                     >
                       {isCurrentTrack && isPlaying ? (
@@ -457,27 +457,27 @@ export function PlaylistDisplay({
                   />
                 )}
 
-                {/* Track name + artist */}
+                {/* Track name + artist — wraps to 2 lines on mobile */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate leading-tight" title={track.name}>
+                  <div className="text-sm font-medium leading-tight line-clamp-2" title={track.name}>
                     {track.name}
                   </div>
-                  <div className="text-xs text-[var(--muted)] truncate leading-tight" title={track.artist}>
+                  <div className="text-xs text-[var(--muted)] leading-tight line-clamp-1 mt-0.5" title={track.artist}>
                     {track.artist}
                   </div>
                 </div>
 
-                {/* BPM */}
-                <span className="font-mono text-xs w-7 text-right flex-shrink-0">{track.bpm}</span>
+                {/* BPM — hidden on mobile, visible on sm+ */}
+                <span className="hidden sm:block font-mono text-xs w-7 text-right flex-shrink-0">{track.bpm}</span>
 
                 {/* Duration */}
-                <span className="font-mono text-xs text-[var(--muted)] w-10 text-right flex-shrink-0">
+                <span className="font-mono text-xs text-[var(--muted)] w-9 sm:w-10 text-right flex-shrink-0">
                   {formatDuration(track.duration_ms)}
                 </span>
 
                 {/* Feedback buttons — 44px touch targets */}
                 {isAuthenticated && (
-                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <div className="flex items-center gap-0 flex-shrink-0">
                     <button
                       onClick={() => handleFeedback(track.id, 1)}
                       className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded transition-colors ${

@@ -19,13 +19,22 @@ import Link from 'next/link'
 import { Save, AudioLines, Share, Settings, Clock, Music, Gauge } from 'lucide-react'
 import { formatTotalDuration } from '@/lib/utils'
 
-type GenerateState = 'empty' | 'loading' | 'results'
+type GenerateState = 'empty' | 'loading' | 'results' | 'error'
 
 const LOADING_STAGES = [
   { label: 'Breaking down your WOD...', progress: 20 },
   { label: 'Matching tracks to your tempo...', progress: 55 },
   { label: 'Dialing in the perfect playlist...', progress: 85 },
 ]
+
+/**
+ * Asymptotic progress value for the loading bar.
+ * Crawls quickly to ~60%, then slows to a near-stop at 92%.
+ * Formula: target = 92 * (1 - e^(-t/18)) where t is seconds elapsed.
+ */
+function asymptotic(elapsed: number): number {
+  return 92 * (1 - Math.exp(-elapsed / 18))
+}
 
 const GENRE_OPTIONS = [
   'Rock', 'Hip-Hop', 'EDM', 'Metal', 'Pop', 'Punk', 'Country', 'Indie',
@@ -40,6 +49,8 @@ export default function GeneratePage() {
   const [selectedGenre, setSelectedGenre] = useState('Rock')
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
   const [loadingStage, setLoadingStage] = useState(0)
+  const [smoothProgress, setSmoothProgress] = useState(0)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [initialText, setInitialText] = useState<string | undefined>(undefined)
   const { data: session } = authClient.useSession()
 
@@ -70,7 +81,7 @@ export default function GeneratePage() {
     }
   }, [result])
 
-  // Progress through loading stages on timers
+  // Progress stage labels on timers (unchanged — drives the status text)
   useEffect(() => {
     if (state !== 'loading') {
       setLoadingStage(0)
@@ -81,6 +92,26 @@ export default function GeneratePage() {
       setTimeout(() => setLoadingStage(2), 5500),
     ]
     return () => timers.forEach(clearTimeout)
+  }, [state])
+
+  // Smooth asymptotic progress bar — ticks every 500 ms while loading
+  useEffect(() => {
+    if (state !== 'loading') {
+      // Snap to 100% briefly so the bar fills before unmounting, then reset
+      if (state === 'results') {
+        setSmoothProgress(100)
+      } else {
+        setSmoothProgress(0)
+      }
+      return
+    }
+    setSmoothProgress(5)
+    const start = Date.now()
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000
+      setSmoothProgress(asymptotic(elapsed))
+    }, 500)
+    return () => clearInterval(interval)
   }, [state])
 
   // Fetch Spotify access token when authenticated
@@ -145,6 +176,7 @@ export default function GeneratePage() {
   ) => {
     setState('loading')
     setResult(null)
+    setErrorMessage(null)
     setWorkoutText(text)
     try {
       const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
@@ -153,8 +185,8 @@ export default function GeneratePage() {
       toast.success('Your playlist is locked in.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
-      toast.error(message)
-      setState('empty')
+      setErrorMessage(message)
+      setState('error')
     }
   }
 
@@ -217,6 +249,7 @@ export default function GeneratePage() {
   const handleNewWorkout = () => {
     setResult(null)
     setWorkoutText('')
+    setSelectedGenre('Rock')
     setState('empty')
     localStorage.removeItem('crank_last_playlist')
   }
@@ -255,13 +288,15 @@ export default function GeneratePage() {
         showLogo
         rightContent={
           <div className="flex items-center gap-2">
-            <Link
-              href="/profile"
-              aria-label="Settings"
-              className="p-1.5 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              <Settings className="h-5 w-5" />
-            </Link>
+            {session && (
+              <Link
+                href="/profile"
+                aria-label="Settings"
+                className="p-1.5 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <Settings className="h-5 w-5" />
+              </Link>
+            )}
             <UserMenu />
           </div>
         }
@@ -269,19 +304,28 @@ export default function GeneratePage() {
       <div className="container mx-auto px-4 max-w-5xl space-y-3">
         {/* Workout input — hero heading in results, full form otherwise */}
         {state === 'results' ? (
-          <div className="flex items-center justify-between">
-            <h2 className="font-heading text-xl font-bold uppercase tracking-wide truncate">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="font-heading text-xl font-bold uppercase tracking-wide leading-tight line-clamp-2 min-w-0">
               {result?.workout.workout_name || workoutText}
             </h2>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
               <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
               <Button variant="outline" size="sm" onClick={handleNewWorkout}>New</Button>
             </div>
           </div>
         ) : (
           <>
+            {state === 'error' && errorMessage && (
+              <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" role="alert">
+                <p className="font-medium">Something went wrong</p>
+                <p className="mt-1 text-red-600 dark:text-red-400">{errorMessage}</p>
+              </div>
+            )}
             <WorkoutForm
-              onSubmit={handleSubmit}
+              onSubmit={async (text, img, mediaType) => {
+                setErrorMessage(null)
+                await handleSubmit(text, img, mediaType)
+              }}
               isLoading={state === 'loading'}
               initialText={initialText}
             />
@@ -310,18 +354,17 @@ export default function GeneratePage() {
         {/* Loading state */}
         {state === 'loading' && (
           <div className="space-y-4" aria-live="polite">
-            {/* 3-stage progress */}
+            {/* Smooth asymptotic progress bar + stage label */}
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
-                  <div
-                    className="h-full bg-[var(--accent)] rounded-full transition-all duration-700 ease-out"
-                    style={{ width: `${LOADING_STAGES[loadingStage].progress}%` }}
-                  />
-                </div>
-                <span className="text-xs text-[var(--muted)] font-mono w-8 text-right">
-                  {LOADING_STAGES[loadingStage].progress}%
-                </span>
+              <div className="h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
+                <div
+                  className="h-full bg-[var(--accent)] rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${smoothProgress}%` }}
+                  role="progressbar"
+                  aria-valuenow={Math.round(smoothProgress)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
               </div>
               <p className="text-sm text-[var(--muted)]">
                 {LOADING_STAGES[loadingStage].label}
@@ -403,8 +446,8 @@ export default function GeneratePage() {
         )}
 
         {/* Empty state — rich, branded */}
-        {state === 'empty' && !result && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
+        {state === 'empty' && !result && !workoutText && !errorMessage && (
+          <div className="flex flex-col items-center justify-center py-10 md:min-h-[30vh] md:py-0 text-center">
             <div className="relative mb-6">
               <div className="h-20 w-20 rounded-2xl bg-[var(--surface-2)] flex items-center justify-center">
                 <AudioLines className="h-10 w-10 text-[var(--accent)]" />

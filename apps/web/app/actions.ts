@@ -10,7 +10,7 @@ import { coachProfiles, savedPlaylists, trackFeedback } from '@/lib/schema'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const API_SHARED_SECRET = process.env.API_SHARED_SECRET
-const REQUEST_TIMEOUT_MS = 55000
+const REQUEST_TIMEOUT_MS = 90000
 const MAX_WORKOUT_TEXT_LENGTH = 5000
 
 // ============================================================================
