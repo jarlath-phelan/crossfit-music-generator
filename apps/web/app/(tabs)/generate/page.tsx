@@ -65,6 +65,10 @@ export default function GeneratePage() {
           setState('results')
         }
       }
+      const savedText = localStorage.getItem('crank_last_workout_text')
+      if (savedText) setWorkoutText(savedText)
+      const savedGenre = localStorage.getItem('crank_last_genre')
+      if (savedGenre) setSelectedGenre(savedGenre)
     } catch {
       // Ignore invalid localStorage data
     }
@@ -182,6 +186,8 @@ export default function GeneratePage() {
       const data = await generatePlaylist(text, imageBase64, imageMediaType, selectedGenre.toLowerCase())
       setResult(data)
       setState('results')
+      localStorage.setItem('crank_last_workout_text', text)
+      localStorage.setItem('crank_last_genre', selectedGenre)
       toast.success('Your playlist is locked in.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate playlist'
@@ -252,6 +258,8 @@ export default function GeneratePage() {
     setSelectedGenre('Rock')
     setState('empty')
     localStorage.removeItem('crank_last_playlist')
+    localStorage.removeItem('crank_last_workout_text')
+    localStorage.removeItem('crank_last_genre')
   }
 
   const handleEdit = () => {
