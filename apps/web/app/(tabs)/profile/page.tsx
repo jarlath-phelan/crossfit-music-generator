@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
@@ -6,7 +8,12 @@ import { ProfileForm } from '@/components/profile-form'
 import { PageHeader } from '@/components/page-header'
 
 export default async function ProfilePage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  let session
+  try {
+    session = await auth.api.getSession({ headers: await headers() })
+  } catch {
+    redirect('/generate')
+  }
   if (!session) redirect('/generate')
 
   const profile = await getProfile()

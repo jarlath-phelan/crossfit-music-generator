@@ -44,7 +44,7 @@ export function IntensityArc({
   showGrid = false,
   showPeakMarker = true,
   playheadPosition,
-  height = 60,
+  height = 80,
   className,
 }: IntensityArcProps) {
   const width = 400
@@ -125,8 +125,7 @@ export function IntensityArc({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
-        style={{ height }}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
       >
         <defs>
           {/* Gradient for the area fill */}

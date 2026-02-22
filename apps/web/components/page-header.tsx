@@ -26,7 +26,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        'flex items-center justify-between px-4 pt-[env(safe-area-inset-top,12px)] pb-3',
+        'flex items-center justify-between px-4 pt-[env(safe-area-inset-top,8px)] pb-2',
         className
       )}
     >

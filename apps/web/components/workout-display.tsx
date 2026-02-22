@@ -41,9 +41,9 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
     phase.intensity !== 'warm_up' && phase.intensity !== 'cooldown'
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Phase cards in a horizontal row */}
-      <div className="flex gap-3" role="list" aria-label={`Workout phases, ${workout.phases.length} total`}>
+      <div className="flex gap-2" role="list" aria-label={`Workout phases, ${workout.phases.length} total`}>
         {workout.phases.map((phase, index) => (
           <div
             key={index}
@@ -52,7 +52,7 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
               ${isWodPhase(phase) ? 'flex-[2]' : 'flex-1'}
               bg-white rounded-xl border border-[var(--border)] border-l-4
               ${PHASE_BORDER_CLASSES[phase.intensity]}
-              p-3 shadow-sm
+              p-2.5 shadow-sm
               animate-scale-in
             `}
             style={{ animationDelay: `${index * 100}ms` }}
@@ -83,7 +83,7 @@ export function WorkoutDisplay({ workout }: WorkoutDisplayProps) {
         totalDuration={workout.total_duration_min}
         showLabels
         showPeakMarker
-        height={56}
+        height={64}
       />
     </div>
   )

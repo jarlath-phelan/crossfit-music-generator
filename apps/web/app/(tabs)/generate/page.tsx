@@ -138,7 +138,7 @@ export default function GeneratePage() {
           </div>
         }
       />
-      <div className="container mx-auto px-4 max-w-5xl space-y-4">
+      <div className="container mx-auto px-4 max-w-5xl space-y-3">
         {/* Workout input — full or compact */}
         {state === 'results' ? (
           <WorkoutForm
@@ -171,7 +171,7 @@ export default function GeneratePage() {
 
         {/* Results state */}
         {state === 'results' && result && (
-          <div className="space-y-4 animate-fade-slide-up">
+          <div className="space-y-3 animate-fade-slide-up">
             {/* Save button */}
             {session && (
               <div className="flex justify-end">

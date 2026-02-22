@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { redirect, notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import Link from 'next/link'
@@ -13,7 +15,12 @@ export default async function PlaylistPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const session = await auth.api.getSession({ headers: await headers() })
+  let session
+  try {
+    session = await auth.api.getSession({ headers: await headers() })
+  } catch {
+    redirect('/generate')
+  }
   if (!session) redirect('/generate')
 
   const { id } = await params

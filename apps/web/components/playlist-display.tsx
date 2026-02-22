@@ -82,7 +82,7 @@ export function PlaylistDisplay({
               key={track.id}
               role="listitem"
               className={`
-                flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors
+                flex items-center gap-2 px-2 py-1 rounded-lg transition-colors
                 ${isCurrentTrack
                   ? 'bg-[var(--accent)]/5 border-l-2 border-l-[var(--accent)]'
                   : 'hover:bg-[var(--secondary)] border-l-2 border-l-transparent'
