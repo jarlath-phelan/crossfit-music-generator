@@ -9,8 +9,8 @@ import { Onboarding } from '@/components/onboarding'
 import { WorkoutDisplay } from '@/components/workout-display'
 import { PlaylistDisplay } from '@/components/playlist-display'
 import { GenerateSkeleton } from '@/components/generate-skeleton'
-import { SpotifyPlayer } from '@/components/spotify-player'
 import { useSpotifyPlayer } from '@/hooks/use-spotify-player'
+import { useSpotifyMiniPlayer } from '@/components/spotify-context'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/page-header'
@@ -103,6 +103,39 @@ export default function GeneratePage() {
     accessToken: spotifyToken,
     onError: (error) => toast.error(error),
   })
+
+  const { setState: setMiniPlayerState } = useSpotifyMiniPlayer()
+
+  // Push Spotify state to mini-player context
+  useEffect(() => {
+    if (!spotifyPlayer.isReady || !result) {
+      setMiniPlayerState(null)
+      return
+    }
+    const tracks = result.playlist.tracks
+    const currentIndex = tracks.findIndex(
+      (t) => t.spotify_uri === spotifyPlayer.currentTrackUri
+    )
+    setMiniPlayerState({
+      currentTrack: currentIndex >= 0 ? tracks[currentIndex] : null,
+      isPlaying: spotifyPlayer.isPlaying,
+      position: spotifyPlayer.position,
+      duration: spotifyPlayer.duration,
+      onPlayPause: () => {
+        if (spotifyPlayer.isPlaying) {
+          spotifyPlayer.pause()
+        } else if (spotifyPlayer.currentTrackUri) {
+          spotifyPlayer.resume()
+        }
+      },
+      onSkipNext: spotifyPlayer.skipToNext,
+    })
+  }, [spotifyPlayer.isReady, spotifyPlayer.isPlaying, spotifyPlayer.currentTrackUri, spotifyPlayer.position, spotifyPlayer.duration, result, setMiniPlayerState])
+
+  // Clean up mini-player on unmount
+  useEffect(() => {
+    return () => setMiniPlayerState(null)
+  }, [setMiniPlayerState])
 
   const handleSubmit = async (
     text: string,
@@ -367,28 +400,6 @@ export default function GeneratePage() {
         )}
       </div>
 
-      {/* Spotify player bar */}
-      {spotifyPlayer.isReady && result && (
-        <div className="fixed bottom-20 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--surface-1)]/95 backdrop-blur">
-          <div className="container mx-auto px-4 max-w-5xl">
-            <SpotifyPlayer
-              tracks={result.playlist.tracks}
-              isReady={spotifyPlayer.isReady}
-              isPlaying={spotifyPlayer.isPlaying}
-              currentTrackUri={spotifyPlayer.currentTrackUri}
-              position={spotifyPlayer.position}
-              duration={spotifyPlayer.duration}
-              onPlay={spotifyPlayer.play}
-              onPause={spotifyPlayer.pause}
-              onResume={spotifyPlayer.resume}
-              onSkipNext={spotifyPlayer.skipToNext}
-              onSkipPrevious={spotifyPlayer.skipToPrevious}
-              onSeek={spotifyPlayer.seek}
-              phases={result.workout.phases}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

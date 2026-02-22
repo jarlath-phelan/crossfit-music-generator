@@ -16,7 +16,11 @@ const TABS: TabConfig[] = [
   { label: 'Library', href: '/library', icon: Bookmark },
 ]
 
-export function TabBar() {
+interface TabBarProps {
+  miniPlayer?: React.ReactNode
+}
+
+export function TabBar({ miniPlayer }: TabBarProps) {
   const pathname = usePathname()
 
   return (
@@ -24,6 +28,9 @@ export function TabBar() {
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--surface-1)]/90 backdrop-blur-xl"
       aria-label="Main navigation"
     >
+      {/* Mini-player slot — renders above tabs when playing */}
+      {miniPlayer}
+
       {/* Safe area padding for iOS notch */}
       <div className="flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,0px)]">
         {TABS.map((tab) => {
@@ -48,7 +55,7 @@ export function TabBar() {
                   isActive ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
                 )}
               />
-              <span className="text-[10px] font-semibold leading-none mt-0.5">
+              <span className="text-xs font-semibold leading-none mt-0.5">
                 {tab.label}
               </span>
               {/* Active dot indicator */}
