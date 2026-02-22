@@ -152,8 +152,10 @@ class PlaylistComposerAgent:
         phase_tracks = []
         accumulated_duration_ms = 0
         max_duration = target_duration_ms + PHASE_DURATION_TOLERANCE_MS
+        max_iterations = 50
 
-        while accumulated_duration_ms < target_duration_ms:
+        while accumulated_duration_ms < target_duration_ms and max_iterations > 0:
+            max_iterations -= 1
             remaining_ms = max_duration - accumulated_duration_ms
             if remaining_ms < MIN_REMAINING_DURATION_MS:
                 break

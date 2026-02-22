@@ -300,7 +300,7 @@ export async function submitTrackFeedback(
   trackId: string,
   rating: number
 ): Promise<void> {
-  if (rating !== 1 && rating !== -1) throw new Error('Rating must be 1 or -1')
+  if (rating !== 1 && rating !== -1 && rating !== 0) throw new Error('Rating must be 1, -1, or 0')
 
   const session = await requireSession()
 
@@ -314,13 +314,15 @@ export async function submitTrackFeedback(
       )
     )
 
-  // Insert new feedback
-  await db.insert(trackFeedback).values({
-    userId: session.user.id,
-    playlistId,
-    trackId,
-    rating,
-  })
+  // Insert new feedback (rating=0 means remove only)
+  if (rating !== 0) {
+    await db.insert(trackFeedback).values({
+      userId: session.user.id,
+      playlistId,
+      trackId,
+      rating,
+    })
+  }
 
   // Update taste profile with aggregated artist feedback
   const { liked, disliked } = await aggregateArtistFeedback()
@@ -376,9 +378,7 @@ export interface TrackFeedbackMap {
   [trackId: string]: number // 1 = thumbs up, -1 = thumbs down
 }
 
-export async function getTrackFeedback(
-  playlistId?: string
-): Promise<TrackFeedbackMap> {
+export async function getTrackFeedback(): Promise<TrackFeedbackMap> {
   const session = await getSession()
   if (!session) return {}
 

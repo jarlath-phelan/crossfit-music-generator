@@ -98,7 +98,7 @@ export default function GeneratePage() {
   useEffect(() => {
     getAppSettings().then((s) => {
       if (s.onboarding_style) setOnboardingStyle(s.onboarding_style)
-    })
+    }).catch(() => {})
   }, [])
 
   // Restore last playlist from localStorage on mount
@@ -107,7 +107,7 @@ export default function GeneratePage() {
       const saved = localStorage.getItem('crank_last_playlist')
       if (saved) {
         const parsed = JSON.parse(saved) as GeneratePlaylistResponse
-        if (parsed?.workout && parsed?.playlist) {
+        if (parsed?.workout && parsed?.playlist && Array.isArray(parsed.playlist.tracks)) {
           setResult(parsed)
           setState('results')
         }

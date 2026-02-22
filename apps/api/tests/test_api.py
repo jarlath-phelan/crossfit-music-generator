@@ -45,7 +45,9 @@ class TestHealthEndpoint:
         data = response.json()
         assert data["status"] == "healthy"
         assert "agents" in data
-        assert "music_source" in data
+        # Internal config (mock_mode, music_source) should NOT be exposed
+        assert "music_source" not in data
+        assert "mock_mode" not in data
 
 
 class TestGenerateEndpoint:

@@ -127,7 +127,8 @@ class ClaudeMusicSource(MusicSource):
                 logger.warning(f"Claude music response contained no JSON array. Response text: {text[:200]}")
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Claude music suggestions: {e}. Response text: {text[:200] if 'text' in dir() else 'N/A'}")
+            response_preview = text[:200] if 'text' in locals() else 'N/A'
+            logger.error(f"Failed to parse Claude music suggestions: {e}. Response text: {response_preview}")
         except anthropic.APIError as e:
             logger.error(f"Claude API error for music suggestions: [{type(e).__name__}] {e}")
         except Exception as e:

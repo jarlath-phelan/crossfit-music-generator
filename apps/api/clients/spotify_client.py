@@ -119,7 +119,11 @@ class SpotifyClient:
             except spotipy.SpotifyException as e:
                 if e.http_status == 429:
                     # Rate limited — retry with backoff
-                    retry_after = int(e.headers.get("Retry-After", RETRY_BASE_DELAY * (2 ** attempt)))
+                    try:
+                        retry_after = int(e.headers.get("Retry-After", 0)) if e.headers else 0
+                    except (ValueError, TypeError):
+                        retry_after = 0
+                    retry_after = max(retry_after, int(RETRY_BASE_DELAY * (2 ** attempt)))
                     logger.warning(f"Spotify rate limited, retrying in {retry_after}s")
                     time.sleep(retry_after)
                     continue
@@ -157,18 +161,19 @@ class SpotifyClient:
             name = track_data.get("name", "")
             artist = track_data.get("artist", "")
 
+            result = dict(track_data)
             spotify_track = self.search_track(name, artist)
 
             if spotify_track:
-                track_data["spotify_uri"] = spotify_track.spotify_uri
-                track_data["spotify_url"] = spotify_track.spotify_url
-                track_data["album_art_url"] = spotify_track.album_art_url
+                result["spotify_uri"] = spotify_track.spotify_uri
+                result["spotify_url"] = spotify_track.spotify_url
+                result["album_art_url"] = spotify_track.album_art_url
                 # Use Spotify's duration if available (more accurate)
                 if spotify_track.duration_ms > 0:
-                    track_data["duration_ms"] = spotify_track.duration_ms
+                    result["duration_ms"] = spotify_track.duration_ms
                 resolved_count += 1
 
-            resolved.append(track_data)
+            resolved.append(result)
 
         logger.info(f"Resolved {resolved_count}/{len(tracks)} tracks on Spotify")
         return resolved

@@ -27,7 +27,7 @@ Everything under `apps/api/`:
 - **Models**: `models/schemas.py` — Pydantic v2 models (Phase, Track, Playlist, WorkoutStructure)
 - **Config**: `config.py` — environment-based settings
 - **Tests**: `tests/` — pytest suite
-- **Deployment**: `Dockerfile`, `fly.toml`, `render.yaml`
+- **Deployment**: `Dockerfile`, `render.yaml`
 
 ## Tech Stack
 
@@ -35,8 +35,8 @@ Everything under `apps/api/`:
 - Claude API with `tool_use` forced tool choice for structured output
 - Spotify Web API via spotipy (client credentials flow)
 - SlowAPI for rate limiting
-- HMAC-SHA256 signing between Vercel frontend and Fly.io backend
-- Deployed on Fly.io (256MB, iad region)
+- HMAC-SHA256 signing between Vercel frontend and Render backend
+- Deployed on Render (free tier, Oregon region)
 
 ## Architecture
 

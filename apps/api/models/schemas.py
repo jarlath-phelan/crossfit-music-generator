@@ -3,7 +3,6 @@ Pydantic models for request/response validation
 """
 from pydantic import BaseModel, Field
 from typing import Literal, Optional
-from datetime import datetime
 
 
 # Intensity levels for workout phases
@@ -135,26 +134,3 @@ class GeneratePlaylistResponse(BaseModel):
     """Response containing parsed workout and generated playlist"""
     workout: WorkoutStructure
     playlist: Playlist
-
-
-# ============================================================================
-# Phase 4: Coach Profiles with Music Preferences
-# ============================================================================
-
-class MusicPreferences(BaseModel):
-    """Music preferences for a coach profile"""
-    genres: list[str] = Field(default_factory=lambda: ["rock"])
-    exclude_artists: list[str] = Field(default_factory=list)
-    min_energy: float = Field(default=0.5, ge=0, le=1)
-    allow_explicit: bool = Field(default=False)
-
-
-class CoachProfile(BaseModel):
-    """Coach profile with music preferences"""
-    id: str
-    user_id: str
-    name: str
-    gym_name: Optional[str] = None
-    music_preferences: MusicPreferences
-    created_at: datetime
-    updated_at: datetime

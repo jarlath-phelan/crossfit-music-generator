@@ -35,11 +35,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Rate limiter key: use Fly-Client-IP (set by Fly.io proxy, not spoofable)
+# Rate limiter key: use X-Forwarded-For (set by Render/Fly reverse proxy)
 def get_real_client_ip(request: Request) -> str:
-    fly_ip = request.headers.get("fly-client-ip")
-    if fly_ip:
-        return fly_ip.strip()
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -60,8 +60,8 @@ def _ph_capture(distinct_id: str, event: str, properties: Optional[dict] = None)
         return
     try:
         _posthog_module.capture(distinct_id, event, properties or {})
-    except Exception:
-        pass  # PostHog should never break the API
+    except Exception as e:
+        logger.debug(f"PostHog capture failed: {e}")
 
 
 @asynccontextmanager
@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 import os as _os
-_is_production = _os.getenv("FLY_APP_NAME") is not None
+_is_production = _os.getenv("RENDER") is not None or _os.getenv("FLY_APP_NAME") is not None
 
 app = FastAPI(
     title="Crank API",
@@ -189,12 +189,6 @@ async def health_check():
         return {
             "status": "healthy" if all_healthy else "degraded",
             "agents": agent_status,
-            "mock_mode": {
-                "anthropic": settings.use_mock_anthropic,
-                "spotify": settings.use_mock_spotify
-            },
-            "music_source": settings.music_source,
-            "spotify_enabled": spotify_client is not None,
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -300,7 +294,10 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
                 logger.warning("Invalid HMAC signature for request")
                 user_id = None
 
+    ALLOWED_GENRES = {"rock", "hip-hop", "edm", "metal", "pop", "punk", "country", "indie"}
     user_genre = request.headers.get("X-User-Genre")
+    if user_genre and user_genre.lower() not in ALLOWED_GENRES:
+        user_genre = None
     user_exclude_artists = request.headers.get("X-User-Exclude-Artists")
     user_min_energy_str = request.headers.get("X-User-Min-Energy")
     user_min_energy = None
@@ -315,8 +312,10 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     user_hidden_tracks = request.headers.get("X-User-Hidden-Tracks")
     if user_id:
         logger.info("Authenticated request received")
+    ALLOWED_STRATEGIES = {"claude", "deezer", "claude_deezer_verify", "claude_two_step", "hybrid", "deezer_claude_rerank", "mock"}
     music_strategy = request.headers.get("X-Music-Strategy", settings.music_strategy)
-    user_taste_description = request.headers.get("X-User-Taste-Description")
+    if music_strategy not in ALLOWED_STRATEGIES:
+        music_strategy = settings.music_strategy
     logger.info(f"Music strategy: {music_strategy}")
 
     if user_genre:
@@ -375,15 +374,19 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
                 request_curator = MusicCuratorAgent(music_source=override_source)
                 request_composer = PlaylistComposerAgent(curator=request_curator)
                 logger.info(f"Using override strategy: {music_strategy}")
+        MAX_HEADER_ITEMS = 100
         exclude_set = set()
         if user_exclude_artists:
-            exclude_set = {a.strip() for a in user_exclude_artists.split(",") if a.strip()}
+            items = [a.strip() for a in user_exclude_artists.split(",") if a.strip()]
+            exclude_set = set(items[:MAX_HEADER_ITEMS])
         boost_set = set()
         if user_boost_artists:
-            boost_set = {a.strip() for a in user_boost_artists.split(",") if a.strip()}
+            items = [a.strip() for a in user_boost_artists.split(",") if a.strip()]
+            boost_set = set(items[:MAX_HEADER_ITEMS])
         hidden_set = set()
         if user_hidden_tracks:
-            hidden_set = {t.strip() for t in user_hidden_tracks.split(",") if t.strip()}
+            items = [t.strip() for t in user_hidden_tracks.split(",") if t.strip()]
+            hidden_set = set(items[:MAX_HEADER_ITEMS])
         playlist = request_composer.compose_and_validate(
             workout,
             genre=user_genre,
@@ -421,23 +424,23 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         _ph_capture(distinct_id, "generate_error", {
-            "error_type": "ValueError",
+            "error_type": "validation_error",
             "elapsed_ms": int((_time.time() - request_start) * 1000),
         })
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid workout data. Please check your input.")
 
     except NotImplementedError as e:
         logger.error(f"Feature not available: {e}")
         _ph_capture(distinct_id, "generate_error", {
-            "error_type": "NotImplementedError",
+            "error_type": "not_implemented",
             "elapsed_ms": int((_time.time() - request_start) * 1000),
         })
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="This feature is not yet available.")
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
         _ph_capture(distinct_id, "generate_error", {
-            "error_type": type(e).__name__,
+            "error_type": "internal_error",
             "elapsed_ms": int((_time.time() - request_start) * 1000),
         })
         raise HTTPException(
@@ -452,10 +455,7 @@ async def global_exception_handler(request, exc):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={
-            "detail": "An unexpected error occurred",
-            "type": type(exc).__name__
-        }
+        content={"detail": "An unexpected error occurred"}
     )
 
 

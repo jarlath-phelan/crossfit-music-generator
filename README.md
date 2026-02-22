@@ -45,7 +45,7 @@ Workout text or photo → Claude parses phases → Music source finds tracks by 
 crossfit-music-generator/
 ├── apps/
 │   ├── web/                  # Next.js 16 frontend (React 19, Tailwind v4)
-│   │   ├── app/(tabs)/       # Tab-based layout (Generate, Library, Profile)
+│   │   ├── app/(tabs)/       # Tab-based layout (Generate, Library)
 │   │   ├── components/       # UI components, player, onboarding
 │   │   ├── hooks/            # Spotify player hook, auth hooks
 │   │   └── lib/              # Auth config, utilities
