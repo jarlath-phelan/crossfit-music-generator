@@ -34,15 +34,27 @@ async function requireSession() {
 export async function getSpotifyAccessToken(): Promise<string | null> {
   try {
     const session = await getSession()
-    if (!session) return null
+    if (!session) {
+      console.warn('[spotify] No session — cannot fetch access token')
+      return null
+    }
 
     const result = await auth.api.getAccessToken({
       body: { providerId: 'spotify' },
       headers: await headers(),
     })
 
-    return result?.accessToken ?? null
-  } catch {
+    if (!result?.accessToken) {
+      console.warn('[spotify] getAccessToken returned no token', {
+        userId: session.user.id,
+        hasResult: !!result,
+      })
+      return null
+    }
+
+    return result.accessToken
+  } catch (error) {
+    console.error('[spotify] Failed to get access token:', error instanceof Error ? error.message : error)
     return null
   }
 }
@@ -65,10 +77,15 @@ export async function exportToSpotify(
   const meRes = await fetch('https://api.spotify.com/v1/me', {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!meRes.ok) throw new Error('Failed to get Spotify user profile')
+  if (!meRes.ok) {
+    const body = await meRes.text().catch(() => '')
+    console.error('[spotify] /me failed:', { status: meRes.status, body })
+    throw new Error('Failed to get Spotify user profile')
+  }
   const me = await meRes.json()
 
   // 2. Create playlist
+  console.info('[spotify] Creating playlist:', { name: playlistName, trackCount: trackUris.length, user: me.id })
   const createRes = await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
     method: 'POST',
     headers: {
@@ -81,7 +98,11 @@ export async function exportToSpotify(
       public: false,
     }),
   })
-  if (!createRes.ok) throw new Error('Failed to create Spotify playlist')
+  if (!createRes.ok) {
+    const body = await createRes.text().catch(() => '')
+    console.error('[spotify] Create playlist failed:', { status: createRes.status, body })
+    throw new Error('Failed to create Spotify playlist')
+  }
   const playlist = await createRes.json()
 
   // 3. Add tracks (Spotify allows max 100 per request)
@@ -95,9 +116,14 @@ export async function exportToSpotify(
       },
       body: JSON.stringify({ uris: batch }),
     })
-    if (!addRes.ok) throw new Error('Failed to add tracks to Spotify playlist')
+    if (!addRes.ok) {
+      const body = await addRes.text().catch(() => '')
+      console.error('[spotify] Add tracks failed:', { status: addRes.status, body, batch: i })
+      throw new Error('Failed to add tracks to Spotify playlist')
+    }
   }
 
+  console.info('[spotify] Playlist exported:', { playlistId: playlist.id, url: playlist.external_urls.spotify })
   return { spotifyUrl: playlist.external_urls.spotify }
 }
 
@@ -184,6 +210,15 @@ export async function generatePlaylist(
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
+  console.info('[generate] Starting request:', {
+    apiUrl: API_URL,
+    hasImage: !!hasImage,
+    textLength: hasText ? workoutText.length : 0,
+    genre: fetchHeaders['X-User-Genre'] || 'default',
+    authenticated: !!session,
+  })
+  const startTime = Date.now()
+
   try {
     const response = await fetch(`${API_URL}/api/v1/generate`, {
       method: 'POST',
@@ -193,17 +228,32 @@ export async function generatePlaylist(
       signal: controller.signal,
     })
 
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }))
+      console.error('[generate] API error:', { status: response.status, detail: error.detail, elapsed: `${elapsed}s` })
       throw new Error(error.detail || `API error: ${response.status}`)
     }
 
-    return await response.json()
+    const result = await response.json()
+    console.info('[generate] Success:', {
+      elapsed: `${elapsed}s`,
+      phases: result.workout?.phases?.length ?? 0,
+      tracks: result.playlist?.tracks?.length ?? 0,
+    })
+    return result
   } catch (error) {
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
     if (error instanceof Error) {
-      if (error.name === 'AbortError') throw new Error('Request timed out. Please try again.')
+      if (error.name === 'AbortError') {
+        console.error('[generate] Request timed out after', `${elapsed}s`, `(limit: ${REQUEST_TIMEOUT_MS}ms)`)
+        throw new Error('Request timed out. Please try again.')
+      }
+      console.error('[generate] Failed:', { message: error.message, elapsed: `${elapsed}s` })
       throw new Error(`Failed to generate playlist: ${error.message}`)
     }
+    console.error('[generate] Unknown error after', `${elapsed}s`)
     throw new Error('Failed to generate playlist: Unknown error')
   } finally {
     clearTimeout(timeoutId)

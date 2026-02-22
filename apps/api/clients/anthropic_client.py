@@ -4,6 +4,7 @@ Uses tool_use for structured output.
 """
 import json
 import logging
+import time
 from typing import Optional
 
 import anthropic
@@ -139,22 +140,29 @@ class AnthropicClient:
             Parsed WorkoutStructure
         """
         logger.info(f"Calling Claude API ({self.model}) to parse workout")
+        start = time.time()
 
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            tools=[WORKOUT_TOOL],
-            tool_choice={"type": "tool", "name": "parse_workout"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Parse this CrossFit workout:\n\n{workout_text}",
-                }
-            ],
-        )
-
-        return self._extract_workout(response)
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                system=SYSTEM_PROMPT,
+                tools=[WORKOUT_TOOL],
+                tool_choice={"type": "tool", "name": "parse_workout"},
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Parse this CrossFit workout:\n\n{workout_text}",
+                    }
+                ],
+            )
+            elapsed = time.time() - start
+            logger.info(f"Claude parse response in {elapsed:.1f}s — usage: {response.usage.input_tokens}in/{response.usage.output_tokens}out")
+            return self._extract_workout(response)
+        except anthropic.APIError as e:
+            elapsed = time.time() - start
+            logger.error(f"Claude API error after {elapsed:.1f}s: [{type(e).__name__}] {e}")
+            raise
 
     def parse_workout_from_image(
         self, image_base64: str, media_type: str, additional_text: str = ""
@@ -171,6 +179,7 @@ class AnthropicClient:
             Parsed WorkoutStructure
         """
         logger.info(f"Calling Claude Vision API ({self.model}) to parse workout image")
+        start = time.time()
 
         content = [
             {
@@ -187,16 +196,22 @@ class AnthropicClient:
             },
         ]
 
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            tools=[WORKOUT_TOOL],
-            tool_choice={"type": "tool", "name": "parse_workout"},
-            messages=[{"role": "user", "content": content}],
-        )
-
-        return self._extract_workout(response)
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                system=SYSTEM_PROMPT,
+                tools=[WORKOUT_TOOL],
+                tool_choice={"type": "tool", "name": "parse_workout"},
+                messages=[{"role": "user", "content": content}],
+            )
+            elapsed = time.time() - start
+            logger.info(f"Claude vision response in {elapsed:.1f}s — usage: {response.usage.input_tokens}in/{response.usage.output_tokens}out")
+            return self._extract_workout(response)
+        except anthropic.APIError as e:
+            elapsed = time.time() - start
+            logger.error(f"Claude Vision API error after {elapsed:.1f}s: [{type(e).__name__}] {e}")
+            raise
 
     def _extract_workout(self, response) -> WorkoutStructure:
         """Extract WorkoutStructure from Claude's tool_use response."""

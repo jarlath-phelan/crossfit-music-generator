@@ -50,10 +50,20 @@ export function useSpotifyPlayer({
 
   const playerRef = useRef<Spotify.Player | null>(null)
   const deviceIdRef = useRef<string | null>(null)
+  // Use refs for values that change without needing to tear down the player
+  const accessTokenRef = useRef(accessToken)
+  accessTokenRef.current = accessToken
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
 
-  // Initialize SDK
+  // Track whether we've ever had a token (to avoid reconnecting on refresh)
+  const hasInitializedRef = useRef(false)
+
+  // Initialize SDK — only when we first get a token, not on every refresh
   useEffect(() => {
     if (!accessToken) return
+    if (hasInitializedRef.current) return // Already connected, token refresh handled via ref
+    hasInitializedRef.current = true
 
     // Load Spotify SDK script if not present
     if (!document.getElementById('spotify-sdk')) {
@@ -65,18 +75,21 @@ export function useSpotifyPlayer({
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => {
+      console.info('[spotify-sdk] Initializing player')
       const player = new Spotify.Player({
         name: 'CrossFit Playlist Generator',
-        getOAuthToken: (cb) => cb(accessToken),
+        getOAuthToken: (cb) => cb(accessTokenRef.current!),
         volume: 0.8,
       })
 
       player.addListener('ready', ({ device_id }) => {
+        console.info('[spotify-sdk] Player ready, device:', device_id)
         deviceIdRef.current = device_id
         setState((prev) => ({ ...prev, isReady: true, error: null }))
       })
 
       player.addListener('not_ready', () => {
+        console.warn('[spotify-sdk] Player not ready')
         deviceIdRef.current = null
         setState((prev) => ({ ...prev, isReady: false }))
       })
@@ -94,21 +107,24 @@ export function useSpotifyPlayer({
       })
 
       player.addListener('initialization_error', ({ message }) => {
+        console.error('[spotify-sdk] Initialization error:', message)
         const err = `Spotify init error: ${message}`
         setState((prev) => ({ ...prev, error: err }))
-        onError?.(err)
+        onErrorRef.current?.(err)
       })
 
       player.addListener('authentication_error', ({ message }) => {
+        console.error('[spotify-sdk] Authentication error:', message)
         const err = `Spotify auth error: ${message}`
         setState((prev) => ({ ...prev, error: err, isReady: false }))
-        onError?.(err)
+        onErrorRef.current?.(err)
       })
 
       player.addListener('account_error', ({ message }) => {
+        console.error('[spotify-sdk] Account error (Premium required):', message)
         const err = `Spotify account error (Premium required): ${message}`
         setState((prev) => ({ ...prev, error: err, isReady: false }))
-        onError?.(err)
+        onErrorRef.current?.(err)
       })
 
       player.connect()
@@ -121,37 +137,52 @@ export function useSpotifyPlayer({
     }
 
     return () => {
+      console.info('[spotify-sdk] Disconnecting player')
       playerRef.current?.disconnect()
       playerRef.current = null
       deviceIdRef.current = null
+      hasInitializedRef.current = false
     }
-  }, [accessToken, onError])
+  }, [accessToken]) // eslint-disable-line react-hooks/exhaustive-deps -- only connect once, refs handle updates
 
   const play = useCallback(
     (uri: string, allUris?: string[]) => {
-      if (!accessToken || !deviceIdRef.current) return
+      const token = accessTokenRef.current
+      if (!token || !deviceIdRef.current) {
+        console.warn('[spotify-sdk] Cannot play — missing token or device', {
+          hasToken: !!token,
+          hasDevice: !!deviceIdRef.current,
+        })
+        return
+      }
 
       // If allUris provided, queue entire playlist starting at the given track
       const uris = allUris ?? [uri]
       const offset = allUris ? { uri } : undefined
 
+      console.info('[spotify-sdk] Playing:', { uri, trackCount: uris.length })
       fetch(
         `https://api.spotify.com/v1/me/player/play?device_id=${deviceIdRef.current}`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ uris, offset }),
         }
-      ).catch((err) => {
+      ).then((res) => {
+        if (!res.ok) {
+          console.error('[spotify-sdk] Play API error:', { status: res.status, uri })
+        }
+      }).catch((err) => {
+        console.error('[spotify-sdk] Play failed:', err.message)
         const msg = `Failed to play: ${err.message}`
         setState((prev) => ({ ...prev, error: msg }))
-        onError?.(msg)
+        onErrorRef.current?.(msg)
       })
     },
-    [accessToken, onError]
+    []
   )
 
   const pause = useCallback(() => {

@@ -176,16 +176,25 @@ async def health_check():
 def _resolve_spotify(playlist) -> None:
     """Resolve playlist tracks to Spotify URIs if Spotify client is available."""
     if not spotify_client:
+        logger.debug("Spotify client not available — skipping track resolution")
         return
 
+    import time as _time
     logger.info("Step 3: Resolving tracks on Spotify...")
+    start = _time.time()
     track_dicts = [
         {"name": t.name, "artist": t.artist}
         for t in playlist.tracks
     ]
 
-    resolved = spotify_client.resolve_tracks(track_dicts)
+    try:
+        resolved = spotify_client.resolve_tracks(track_dicts)
+    except Exception as e:
+        elapsed = _time.time() - start
+        logger.error(f"Spotify resolution failed after {elapsed:.1f}s: [{type(e).__name__}] {e}")
+        return
 
+    resolved_count = 0
     for i, resolved_data in enumerate(resolved):
         track = playlist.tracks[i]
         if "spotify_uri" in resolved_data:
@@ -200,6 +209,10 @@ def _resolve_spotify(playlist) -> None:
                 spotify_uri=resolved_data.get("spotify_uri"),
                 album_art_url=resolved_data.get("album_art_url"),
             )
+            resolved_count += 1
+
+    elapsed = _time.time() - start
+    logger.info(f"Spotify resolution complete: {resolved_count}/{len(track_dicts)} tracks in {elapsed:.1f}s")
 
 
 @app.post("/api/v1/generate", response_model=GeneratePlaylistResponse)

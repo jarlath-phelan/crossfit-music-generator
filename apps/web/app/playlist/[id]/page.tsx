@@ -18,7 +18,8 @@ export default async function PlaylistPage({
   let session
   try {
     session = await auth.api.getSession({ headers: await headers() })
-  } catch {
+  } catch (error) {
+    console.error('[playlist] Session check failed:', error instanceof Error ? error.message : error)
     redirect('/generate')
   }
   if (!session) redirect('/generate')

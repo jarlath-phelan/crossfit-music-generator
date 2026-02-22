@@ -55,6 +55,9 @@ class ClaudeMusicSource(MusicSource):
         limit: int = 10,
     ) -> list[TrackCandidate]:
         """Ask Claude to suggest songs for a BPM range."""
+        import json
+        import time as _time
+
         candidates = []
 
         try:
@@ -65,21 +68,23 @@ class ClaudeMusicSource(MusicSource):
                 genre=genre,
             )
 
+            start = _time.time()
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )
+            elapsed = _time.time() - start
+            logger.debug(f"Claude music suggestion API call: {elapsed:.1f}s, {response.usage.input_tokens}in/{response.usage.output_tokens}out")
 
             # Extract JSON from response
             text = response.content[0].text
-            import json
 
             # Try to find JSON array in response
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                songs = json.loads(text[start:end])
+            start_idx = text.find("[")
+            end_idx = text.rfind("]") + 1
+            if start_idx >= 0 and end_idx > start_idx:
+                songs = json.loads(text[start_idx:end_idx])
                 for song in songs[:limit]:
                     bpm = int(song.get("bpm", 0))
                     if bpm_min <= bpm <= bpm_max:
@@ -94,13 +99,15 @@ class ClaudeMusicSource(MusicSource):
                                 verified_bpm=False,  # Claude suggestions are unverified
                             )
                         )
+            else:
+                logger.warning(f"Claude music response contained no JSON array. Response text: {text[:200]}")
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Claude music suggestions: {e}")
+            logger.error(f"Failed to parse Claude music suggestions: {e}. Response text: {text[:200] if 'text' in dir() else 'N/A'}")
         except anthropic.APIError as e:
-            logger.error(f"Claude API error for music suggestions: {e}")
+            logger.error(f"Claude API error for music suggestions: [{type(e).__name__}] {e}")
         except Exception as e:
-            logger.error(f"Claude music source unexpected error: {e}")
+            logger.error(f"Claude music source unexpected error: [{type(e).__name__}] {e}", exc_info=True)
 
         logger.info(f"Claude: suggested {len(candidates)} tracks for BPM {bpm_min}-{bpm_max}")
         return candidates

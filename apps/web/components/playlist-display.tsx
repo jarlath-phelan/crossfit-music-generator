@@ -345,7 +345,8 @@ export function PlaylistDisplay({
     startTransition(async () => {
       try {
         await submitTrackFeedback(playlistId, trackId, newRating)
-      } catch {
+      } catch (error) {
+        console.error('[feedback] Failed to submit track feedback:', error instanceof Error ? error.message : error)
         // Revert on error
         setFeedbackMap((prev) => {
           const next = { ...prev }
