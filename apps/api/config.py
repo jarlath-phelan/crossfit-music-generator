@@ -20,7 +20,12 @@ class Settings(BaseSettings):
     # Music Source Configuration
     music_source: str = "mock"  # "mock", "getsongbpm", "soundnet", "claude"
     getsongbpm_api_key: Optional[str] = None
+
+    # Music pipeline strategy
+    music_strategy: str = "claude"  # "claude", "claude_deezer_verify", "deezer_claude_rerank", "claude_two_step", "hybrid"
+    artist_expansion: str = "claude"  # "lastfm", "claude", "hybrid"
     soundnet_api_key: Optional[str] = None
+    lastfm_api_key: Optional[str] = None
 
     # API Security
     api_shared_secret: Optional[str] = None  # HMAC shared secret with frontend

@@ -110,3 +110,34 @@ export const trackFeedback = pgTable("track_feedback", {
   rating: integer("rating").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ============================================================================
+// App settings (feature flags)
+// ============================================================================
+
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================================
+// User taste profiles
+// ============================================================================
+
+export const userTasteProfile = pgTable(
+  "user_taste_profile",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    likedArtists: jsonb("liked_artists").$type<Record<string, number>>().default({}),
+    dislikedArtists: jsonb("disliked_artists").$type<Record<string, number>>().default({}),
+    expandedArtists: jsonb("expanded_artists").$type<string[]>().default([]),
+    tasteDescription: text("taste_description"),
+    onboardingArtists: jsonb("onboarding_artists").$type<string[]>().default([]),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("user_taste_profile_user_id_idx").on(table.userId)]
+);
