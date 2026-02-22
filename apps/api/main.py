@@ -302,6 +302,19 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
 
         # Step 2: Compose playlist (with user preferences)
         logger.info("Step 2: Composing playlist...")
+
+        # Override music source based on strategy header
+        request_composer = playlist_composer  # default
+        if music_strategy and music_strategy != settings.music_source:
+            from agents.music_curator import create_music_source_by_name
+            override_source = create_music_source_by_name(music_strategy)
+            if override_source:
+                from agents.music_curator import MusicCuratorAgent
+                from agents.playlist_composer import PlaylistComposerAgent
+                request_curator = MusicCuratorAgent(music_source=override_source)
+                request_composer = PlaylistComposerAgent(curator=request_curator)
+                logger.info(f"Using override strategy: {music_strategy}")
+
         exclude_set = set()
         if user_exclude_artists:
             exclude_set = {a.strip() for a in user_exclude_artists.split(",") if a.strip()}
@@ -311,7 +324,7 @@ def generate_playlist(body: GeneratePlaylistRequest, request: Request):
         hidden_set = set()
         if user_hidden_tracks:
             hidden_set = {t.strip() for t in user_hidden_tracks.split(",") if t.strip()}
-        playlist = playlist_composer.compose_and_validate(
+        playlist = request_composer.compose_and_validate(
             workout,
             genre=user_genre,
             min_energy=user_min_energy,

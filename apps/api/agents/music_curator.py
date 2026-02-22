@@ -44,6 +44,39 @@ def create_music_source() -> MusicSource:
         return MockMusicSource()
 
 
+def create_music_source_by_name(name: str) -> Optional[MusicSource]:
+    """Create a music source by strategy name. Returns None if unknown."""
+    try:
+        n = name.lower()
+        if n == "claude":
+            from music_sources.claude_suggestions import ClaudeMusicSource
+            return ClaudeMusicSource()
+        elif n == "deezer":
+            from music_sources.deezer import DeezerMusicSource
+            return DeezerMusicSource()
+        elif n == "claude_deezer_verify":
+            from music_sources.claude_deezer_verify import ClaudeDeezerVerifySource
+            return ClaudeDeezerVerifySource()
+        elif n == "claude_two_step":
+            from music_sources.claude_two_step import TwoStepClaudeMusicSource
+            return TwoStepClaudeMusicSource()
+        elif n == "hybrid":
+            from music_sources.hybrid import HybridMusicSource
+            return HybridMusicSource()
+        elif n == "deezer_claude_rerank":
+            from music_sources.deezer_claude_rerank import DeezerClaudeRerankSource
+            return DeezerClaudeRerankSource()
+        elif n == "mock":
+            from music_sources.mock_source import MockMusicSource
+            return MockMusicSource()
+        else:
+            logger.warning(f"Unknown music strategy: {name}")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to create music source '{name}': {e}")
+        return None
+
+
 class MusicCuratorAgent:
     """
     Agent responsible for finding and ranking tracks that match workout phases.
