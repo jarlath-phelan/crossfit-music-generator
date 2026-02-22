@@ -299,7 +299,7 @@ export default function GeneratePage() {
           <div className="flex items-center gap-2">
             {session && (
               <Link
-                href="/profile"
+                href="/settings"
                 aria-label="Settings"
                 className="p-1.5 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
               >
