@@ -28,13 +28,13 @@ interface WorkoutFormProps {
   slotBeforeSubmit?: React.ReactNode
 }
 
-const NAMED_WODS: { name: string; text: string }[] = [
-  { name: 'Fran', text: '21-15-9 thrusters (95/65 lbs) and pull-ups. ~5-10 min.' },
-  { name: 'Murph', text: '1 mile run, 100 pull-ups, 200 push-ups, 300 squats, 1 mile run. ~35-60 min.' },
-  { name: 'Grace', text: '30 clean and jerks for time (135/95 lbs). ~3-8 min.' },
-  { name: 'DT', text: '5 rounds: 12 deadlifts, 9 hang cleans, 6 push jerks (155/105 lbs). ~8-15 min.' },
-  { name: 'Cindy', text: '20 min AMRAP: 5 pull-ups, 10 push-ups, 15 squats.' },
-  { name: 'Full Class', text: '60 min class: 10 min warm-up (3 rounds: 200m jog, 10 air squats, 10 PVC pass-throughs), 20 min strength (back squat 5x5), 25 min AMRAP (5 pull-ups, 10 push-ups, 15 squats), 5 min cooldown stretching' },
+const NAMED_WODS: { name: string; text: string; hint: string }[] = [
+  { name: 'Fran', text: '21-15-9 thrusters (95/65 lbs) and pull-ups. ~5-10 min.', hint: '21-15-9 thrusters & pull-ups' },
+  { name: 'Murph', text: '1 mile run, 100 pull-ups, 200 push-ups, 300 squats, 1 mile run. ~35-60 min.', hint: 'Run, pull-ups, push-ups, squats, run' },
+  { name: 'Grace', text: '30 clean and jerks for time (135/95 lbs). ~3-8 min.', hint: '30 clean & jerks for time' },
+  { name: 'DT', text: '5 rounds: 12 deadlifts, 9 hang cleans, 6 push jerks (155/105 lbs). ~8-15 min.', hint: '5 rds: DL, hang cleans, push jerks' },
+  { name: 'Cindy', text: '20 min AMRAP: 5 pull-ups, 10 push-ups, 15 squats.', hint: '20 min AMRAP: pull-ups, push-ups, squats' },
+  { name: 'Full Class', text: '60 min class: 10 min warm-up (3 rounds: 200m jog, 10 air squats, 10 PVC pass-throughs), 20 min strength (back squat 5x5), 25 min AMRAP (5 pull-ups, 10 push-ups, 15 squats), 5 min cooldown stretching', hint: '60 min: warm-up, strength, WOD, cooldown' },
 ]
 
 const INPUT_MODE_OPTIONS = [
@@ -183,7 +183,8 @@ export function WorkoutForm({
                 onClick={() => loadExample(wod.text)}
                 disabled={isLoading}
                 className="text-sm px-4 py-2.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors font-medium min-h-[44px]"
-                aria-label={`Load ${wod.name} workout`}
+                aria-label={`Load ${wod.name} workout: ${wod.hint}`}
+                title={wod.hint}
               >
                 {wod.name}
               </button>
