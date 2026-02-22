@@ -1,8 +1,10 @@
 'use client'
 
 import { PageHeader } from '@/components/page-header'
-import { ChevronDown } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ChevronDown, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 interface FAQItem {
@@ -137,6 +139,13 @@ function FAQAccordion({ item }: { item: FAQItem }) {
 }
 
 export default function HelpPage() {
+  const router = useRouter()
+
+  const handleReplayOnboarding = () => {
+    localStorage.removeItem('crank_onboarding_complete')
+    router.push('/generate')
+  }
+
   return (
     <div>
       <PageHeader title="Help" />
@@ -157,6 +166,20 @@ export default function HelpPage() {
             </div>
           </div>
         ))}
+
+        {/* Replay onboarding */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-1)] p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Replay tutorial</p>
+              <p className="text-xs text-[var(--muted)]">See the intro walkthrough again</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleReplayOnboarding}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Replay
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )

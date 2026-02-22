@@ -37,11 +37,12 @@ export function WorkoutDisplay({ workout, playheadPosition }: WorkoutDisplayProp
   return (
     <div className="space-y-2">
       {/* Phase cards — horizontal scroll on mobile, flex row on desktop */}
-      <div
-        className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide sm:overflow-x-visible"
-        role="list"
-        aria-label={`Workout phases, ${workout.phases.length} total`}
-      >
+      <div className="relative sm:contents">
+        <div
+          className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide sm:overflow-x-visible"
+          role="list"
+          aria-label={`Workout phases, ${workout.phases.length} total`}
+        >
         {workout.phases.map((phase, index) => (
           <div
             key={index}
@@ -73,6 +74,14 @@ export function WorkoutDisplay({ workout, playheadPosition }: WorkoutDisplayProp
             </div>
           </div>
         ))}
+        </div>
+        {/* Scroll affordance — gradient fade on right edge (mobile only) */}
+        {workout.phases.length > 2 && (
+          <div
+            className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none bg-gradient-to-l from-[var(--background)] to-transparent sm:hidden"
+            aria-hidden="true"
+          />
+        )}
       </div>
 
       {/* Intensity arc below the cards */}

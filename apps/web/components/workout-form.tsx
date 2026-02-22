@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, Camera, Type, Zap, Pencil, RotateCcw } from 'lucide-react'
+import { Loader2, Camera, Type, Zap, Pencil, RotateCcw, AlertTriangle } from 'lucide-react'
 import { ImageUpload } from '@/components/image-upload'
 import { TogglePills } from '@/components/ui/toggle-pills'
 
@@ -26,6 +26,17 @@ interface WorkoutFormProps {
   onTextChange?: (text: string) => void
   /** Content rendered between WOD buttons and the Generate button (e.g. genre chips) */
   slotBeforeSubmit?: React.ReactNode
+}
+
+const FITNESS_KEYWORDS = /\b(rep|reps|round|rounds|set|sets|amrap|emom|wod|for time|min|minute|minutes|squat|pull.?up|push.?up|deadlift|clean|jerk|snatch|press|row|run|bike|box jump|wall ball|burpee|lunge|thruster|kettle|swing|sit.?up|plank|rest|warm.?up|cooldown|workout|exercise|class|strength|metcon|rx|scaled|weight|lb|lbs|kg)\b/i
+
+/** Check if text looks like a workout description (non-blocking warning) */
+function looksLikeWorkout(text: string): boolean {
+  const trimmed = text.trim()
+  if (trimmed.length < 10) return false
+  const words = trimmed.split(/\s+/)
+  if (words.length < 3) return false
+  return FITNESS_KEYWORDS.test(trimmed)
 }
 
 const NAMED_WODS: { name: string; text: string; hint: string }[] = [
@@ -175,6 +186,12 @@ export function WorkoutForm({
           <p id="workout-hint" className="sr-only">
             Tip: Include durations for better results.
           </p>
+          {workoutText.trim().length >= 10 && !looksLikeWorkout(workoutText) && (
+            <div className="flex items-start gap-2 rounded-lg bg-amber-950/40 border border-amber-800/50 px-3 py-2 text-xs text-amber-300">
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+              <span>This doesn't look like a workout. Try including exercises, reps, or durations for better results.</span>
+            </div>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {NAMED_WODS.map((wod) => (
               <button
