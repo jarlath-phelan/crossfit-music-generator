@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import type { GeneratePlaylistResponse } from '@crossfit-playlist/shared'
-import { generatePlaylist, getSpotifyAccessToken, savePlaylist, exportToSpotify } from '@/app/actions'
+import { generatePlaylist, getSpotifyAccessToken, savePlaylist, exportToSpotify, saveTasteProfile, getAppSettings } from '@/app/actions'
 import { WorkoutForm } from '@/components/workout-form'
 import { Onboarding } from '@/components/onboarding'
 import { WorkoutDisplay } from '@/components/workout-display'
@@ -53,6 +53,13 @@ export default function GeneratePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [initialText, setInitialText] = useState<string | undefined>(undefined)
   const { data: session } = authClient.useSession()
+  const [onboardingStyle, setOnboardingStyle] = useState('grid')
+
+  useEffect(() => {
+    getAppSettings().then((s) => {
+      if (s.onboarding_style) setOnboardingStyle(s.onboarding_style)
+    })
+  }, [])
 
   // Restore last playlist from localStorage on mount
   useEffect(() => {
@@ -291,6 +298,14 @@ export default function GeneratePage() {
       <Onboarding
         onComplete={() => {}}
         onLoadExample={(text) => setInitialText(text)}
+        onboardingStyle={onboardingStyle}
+        onArtistsSelected={async (artists) => {
+          try {
+            await saveTasteProfile({ onboardingArtists: artists })
+          } catch {
+            // Silent fail — onboarding shouldn't block the app
+          }
+        }}
       />
       <PageHeader
         title="Generate"

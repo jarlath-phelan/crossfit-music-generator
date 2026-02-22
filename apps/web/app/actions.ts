@@ -315,6 +315,55 @@ export async function submitTrackFeedback(
     trackId,
     rating,
   })
+
+  // Update taste profile with aggregated artist feedback
+  const { liked, disliked } = await aggregateArtistFeedback()
+  await db
+    .insert(userTasteProfile)
+    .values({
+      userId: session.user.id,
+      likedArtists: liked,
+      dislikedArtists: disliked,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: userTasteProfile.userId,
+      set: {
+        likedArtists: liked,
+        dislikedArtists: disliked,
+        updatedAt: new Date(),
+      },
+    })
+}
+
+export async function aggregateArtistFeedback(): Promise<{
+  liked: Record<string, number>
+  disliked: Record<string, number>
+}> {
+  const session = await getSession()
+  if (!session) return { liked: {}, disliked: {} }
+
+  const rows = await db.query.trackFeedback.findMany({
+    where: eq(trackFeedback.userId, session.user.id),
+  })
+
+  const liked: Record<string, number> = {}
+  const disliked: Record<string, number> = {}
+
+  for (const row of rows) {
+    // Extract artist from trackId format "source:name:artist"
+    const parts = row.trackId.split(':')
+    if (parts.length < 3) continue
+    const artist = parts[parts.length - 1]
+
+    if (row.rating === 1) {
+      liked[artist] = (liked[artist] ?? 0) + 1
+    } else if (row.rating === -1) {
+      disliked[artist] = (disliked[artist] ?? 0) + 1
+    }
+  }
+
+  return { liked, disliked }
 }
 
 export interface TrackFeedbackMap {
