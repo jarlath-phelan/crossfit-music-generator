@@ -45,7 +45,7 @@ export function TogglePills({
               'relative rounded-full font-medium transition-all duration-200',
               size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
               isActive
-                ? 'bg-white text-[var(--foreground)] shadow-sm'
+                ? 'bg-[var(--surface-1)] text-[var(--foreground)] shadow-sm'
                 : 'text-[var(--muted)] hover:text-[var(--foreground)]'
             )}
           >

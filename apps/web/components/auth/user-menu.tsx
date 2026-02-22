@@ -23,7 +23,7 @@ export function UserMenu() {
   }, []);
 
   if (isPending) {
-    return <div className="h-9 w-24 animate-pulse rounded-lg bg-gray-100" />;
+    return <div className="h-9 w-24 animate-pulse rounded-lg bg-[var(--surface-2)]" />;
   }
 
   if (!session) {
@@ -54,7 +54,7 @@ export function UserMenu() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[var(--border)] bg-white shadow-lg z-50">
+        <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[var(--border)] bg-[var(--surface-1)] shadow-lg z-50">
           <div className="py-1">
             <Link
               href="/profile"

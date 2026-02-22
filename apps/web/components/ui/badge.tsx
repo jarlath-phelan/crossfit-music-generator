@@ -30,7 +30,7 @@ const badgeVariants = cva(
         // Status badges
         'status-green': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
         'status-amber': 'bg-amber-50 text-amber-700 border border-amber-200',
-        'status-gray': 'bg-gray-100 text-gray-600 border border-gray-200',
+        'status-gray': 'bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)]',
         'status-red': 'bg-red-50 text-red-700 border border-red-200',
 
         // Accent
