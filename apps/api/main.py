@@ -8,7 +8,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from config import settings
@@ -24,8 +23,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+# Rate limiter key: use X-Forwarded-For behind reverse proxy (Fly.io)
+def get_real_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 # Configure rate limiting
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_real_client_ip)
 
 # Global agent instances
 workout_parser: WorkoutParserAgent
@@ -88,7 +96,8 @@ app.add_middleware(
     allow_headers=[
         "Content-Type", "Authorization",
         "X-User-ID", "X-User-Genre", "X-User-Exclude-Artists", "X-User-Min-Energy",
-        "X-User-Boost-Artists", "X-User-Hidden-Tracks",
+        "X-User-Boost-Artists", "X-User-Hidden-Tracks", "X-Music-Source",
+        "X-User-Signature",
     ],
 )
 
@@ -184,7 +193,7 @@ def _resolve_spotify(playlist) -> None:
 
 @app.post("/api/v1/generate", response_model=GeneratePlaylistResponse)
 @limiter.limit("10/minute")
-async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
+def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     """
     Generate a playlist from workout text or image.
 
@@ -216,11 +225,14 @@ async def generate_playlist(body: GeneratePlaylistRequest, request: Request):
     user_min_energy = float(user_min_energy_str) if user_min_energy_str else None
     user_boost_artists = request.headers.get("X-User-Boost-Artists")
     user_hidden_tracks = request.headers.get("X-User-Hidden-Tracks")
+    music_source_override = request.headers.get("X-Music-Source")
 
     if user_id:
         logger.info(f"Authenticated request from user {user_id}")
     if user_genre:
         logger.info(f"User genre preference: {user_genre}")
+    if music_source_override:
+        logger.info(f"Music source override requested: {music_source_override}")
 
     if has_text:
         logger.info(f"Received text-based request: {body.workout_text[:50]}...")

@@ -2,6 +2,7 @@
 MusicCuratorAgent: Curates music tracks matching workout phase requirements
 """
 import logging
+import random
 from typing import Optional
 from models.schemas import Phase, Track
 from music_sources.base import MusicSource, TrackCandidate
@@ -204,10 +205,19 @@ class MusicCuratorAgent:
             logger.warning(f"No scored candidates for phase {phase.name}")
             return None
 
-        # Select best track
-        best_track, best_score = scored_candidates[0]
+        # Select from top candidates with weighted probability
+        top_n = scored_candidates[:5]
+        weights = [score for _, score in top_n]
+        total = sum(weights)
+        if total <= 0:
+            best_track = top_n[0][0]
+        else:
+            normalized = [w / total for w in weights]
+            best_track = random.choices(
+                [t for t, _ in top_n], weights=normalized, k=1
+            )[0]
         logger.info(f"Selected '{best_track.name}' by {best_track.artist} "
-                   f"(score: {best_score:.1f}) for {phase.name}")
+                   f"for {phase.name} (from top {len(top_n)} candidates)")
 
         return best_track
 

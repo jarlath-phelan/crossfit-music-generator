@@ -115,6 +115,7 @@ class GeneratePlaylistRequest(BaseModel):
     )
     workout_image_base64: Optional[str] = Field(
         None,
+        max_length=14_000_000,  # ~10MB base64
         description="Base64-encoded image of workout (e.g. whiteboard photo)"
     )
     image_media_type: Optional[str] = Field(
