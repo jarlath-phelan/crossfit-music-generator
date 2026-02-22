@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Zap, Bookmark, Calendar, User, Music, BarChart3 } from 'lucide-react'
+import { Zap, Bookmark, User, Music, BarChart3, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type UserRole = 'coach' | 'attendee'
@@ -16,7 +16,6 @@ interface TabConfig {
 const COACH_TABS: TabConfig[] = [
   { label: 'Generate', href: '/generate', icon: Zap },
   { label: 'Library', href: '/library', icon: Bookmark },
-  { label: 'Classes', href: '/classes', icon: Calendar },
   { label: 'Profile', href: '/profile', icon: User },
 ]
 
