@@ -22,11 +22,13 @@ interface WorkoutFormProps {
   onNewWorkout?: () => void
 }
 
-const EXAMPLE_WORKOUTS = [
-  '21-15-9 thrusters and pull-ups',
-  'AMRAP 20: 5 pull-ups, 10 push-ups, 15 squats',
-  'EMOM 12: 10 burpees',
-  '5 RFT: 400m run, 15 OHS, 15 pull-ups',
+const NAMED_WODS: { name: string; text: string }[] = [
+  { name: 'Fran', text: '21-15-9 thrusters (95/65 lbs) and pull-ups. ~5-10 min.' },
+  { name: 'Murph', text: '1 mile run, 100 pull-ups, 200 push-ups, 300 squats, 1 mile run. ~35-60 min.' },
+  { name: 'Grace', text: '30 clean and jerks for time (135/95 lbs). ~3-8 min.' },
+  { name: 'DT', text: '5 rounds: 12 deadlifts, 9 hang cleans, 6 push jerks (155/105 lbs). ~8-15 min.' },
+  { name: 'Cindy', text: '20 min AMRAP: 5 pull-ups, 10 push-ups, 15 squats.' },
+  { name: 'Full Class', text: '60 min class: 10 min warm-up (3 rounds: 200m jog, 10 air squats, 10 PVC pass-throughs), 20 min strength (back squat 5x5), 25 min AMRAP (5 pull-ups, 10 push-ups, 15 squats), 5 min cooldown stretching' },
 ]
 
 const INPUT_MODE_OPTIONS = [
@@ -156,16 +158,16 @@ export function WorkoutForm({
             Tip: Include durations for better results.
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {EXAMPLE_WORKOUTS.map((example, i) => (
+            {NAMED_WODS.map((wod) => (
               <button
-                key={i}
+                key={wod.name}
                 type="button"
-                onClick={() => loadExample(example)}
+                onClick={() => loadExample(wod.text)}
                 disabled={isLoading}
-                className="text-sm px-3 py-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
-                aria-label={`Load example: ${example}`}
+                className="text-sm px-3 py-2 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors font-medium"
+                aria-label={`Load ${wod.name} workout`}
               >
-                {example}
+                {wod.name}
               </button>
             ))}
           </div>
